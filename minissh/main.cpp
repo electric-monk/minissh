@@ -133,12 +133,11 @@ sshString* t(const char *s)
     return r;
 }
 
-static LargeNumber* MakeBig(LargeNumber *other)
+static BigNumber MakeBig(BigNumber other)
 {
-    LargeNumber *temp = new LargeNumber(1024);
+    BigNumber temp = 1024;
     for (int i = 0; i < 8; i++)
-        other = other->Multiply(temp);
-    temp->Release();
+        other *= temp;
     return other;
 }
 //
@@ -239,12 +238,12 @@ int main(int argc, const char * argv[])
 //        test->Print(stdout);
 //        test = test->ShiftRight(1);
 //    }
-    LargeNumber *test1 = new LargeNumber(1);
-    LargeNumber *test2 = MakeBig(new LargeNumber(2));
-    LargeNumber *testResult = test1->Subtract(test2);
-    fprintf(stdout, "One: "); test1->Print(stdout);
-    fprintf(stdout, "Two: "); test2->Print(stdout);
-    fprintf(stdout, "1-2: "); testResult->Print(stdout);
+    BigNumber test1 = 1;
+    BigNumber test2 = MakeBig(2);
+    BigNumber testResult = test1 - test2;
+    fprintf(stdout, "One: "); test1.Print(stdout);
+    fprintf(stdout, "Two: "); test2.Print(stdout);
+    fprintf(stdout, "1-2: "); testResult.Print(stdout);
 //    LargeNumber *taunt0 = one;
 //    LargeNumber *taunt1 = two;
 ////    LargeNumber *taunt0 = new LargeNumber(2);

@@ -22,20 +22,20 @@ public:
     
     void HandlePayload(sshBlob *data);
     
-    virtual LargeNumber* Prime(void) = 0;
-    virtual LargeNumber* Generator(void) = 0;
+    virtual BigNumber Prime(void) = 0;
+    virtual BigNumber Generator(void) = 0;
     
 protected:
     ~diffieHellman();
     
 private:
-    LargeNumber *_xy;
+    BigNumber _xy;
 
-    LargeNumber *_e, *_f;
+    BigNumber _e, _f;
     
     sshString *_hostKey;
     
-    bool CheckRange(LargeNumber *number);
+    bool CheckRange(const BigNumber &number);
     sshString* MakeHash(void);
 };
 
@@ -52,8 +52,8 @@ public:
     };
     
     dhGroup1(sshTransport *owner, TransportMode mode);
-    LargeNumber* Prime(void);
-    LargeNumber* Generator(void);
+    BigNumber Prime(void);
+    BigNumber Generator(void);
 };
 
 class dhGroup14 : public diffieHellman
@@ -69,8 +69,8 @@ public:
     };
 
     dhGroup14(sshTransport *owner, TransportMode mode);
-    LargeNumber* Prime(void);
-    LargeNumber* Generator(void);
+    BigNumber Prime(void);
+    BigNumber Generator(void);
 };
 
 #endif /* defined(__minissh__DiffieHellman__) */

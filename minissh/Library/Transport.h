@@ -125,7 +125,7 @@ public:
     
     HashType *hash;
     
-    LargeNumber *key;
+    BigNumber key;
     sshString *exchangeHash;
     
     sshBlob *initialisationVectorC2S;

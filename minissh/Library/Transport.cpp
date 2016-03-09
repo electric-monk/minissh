@@ -857,7 +857,7 @@ sshKeyExchanger::sshKeyExchanger(sshTransport *owner, TransportMode mode)
     _mode = mode;
 }
 
-static sshBlob* MakeSameKey(HashType *hash, LargeNumber *K, sshString *H, Byte c, sshString *sessionID)
+static sshBlob* MakeSameKey(HashType *hash, BigNumber K, sshString *H, Byte c, sshString *sessionID)
 {
     sshBlob *blob = new sshBlob();
     sshWriter writer(blob);

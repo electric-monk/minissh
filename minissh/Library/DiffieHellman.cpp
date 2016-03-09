@@ -12,16 +12,9 @@
 #include "RSA.h"
 #include "Hash.h"
 
-bool diffieHellman::CheckRange(LargeNumber *number)
+bool diffieHellman::CheckRange(const BigNumber &number)
 {
-    LargeNumber *one = new LargeNumber(1);
-    if (one->Compare(number) < 0) {
-        one->Release();
-        return false;
-    }
-    LargeNumber *pMinus1 = Prime()->Subtract(one);
-    one->Release();
-    return number->Compare(pMinus1) > 0;
+    return (number >= 1) && (number <= (Prime() - 1));
 }
 
 diffieHellman::diffieHellman(sshTransport *owner, TransportMode mode)
@@ -29,21 +22,12 @@ diffieHellman::diffieHellman(sshTransport *owner, TransportMode mode)
 {
     Byte message = (_mode == Server) ? SSH_MSG_KEXDH_INIT : SSH_MSG_KEXDH_REPLY;
     _owner->RegisterForPackets(this, &message, 1);
-    _e = NULL;
-    _f = NULL;
-    _xy = NULL;
 }
 
 diffieHellman::~diffieHellman()
 {
     Byte message = (_mode == Server) ? SSH_MSG_KEXDH_INIT : SSH_MSG_KEXDH_REPLY;
     _owner->UnregisterForPackets(&message, 1);
-    if (_e)
-        _e->Release();
-    if (_f)
-        _f->Release();
-    if (_xy)
-        _xy->Release();
 }
 
 sshString* diffieHellman::MakeHash(void)
@@ -81,17 +65,13 @@ sshString* diffieHellman::MakeHash(void)
 
 void diffieHellman::Start(void)
 {
-    LargeNumber *p = Prime();
-    LargeNumber *g = Generator();
-    _xy = NULL;
+    BigNumber p = Prime();
+    BigNumber g = Generator();
     do {
-        if (_xy)
-            _xy->Release();
-        _xy = new LargeNumber(p->Length(), _owner->random, 0);
+        _xy = BigNumber(p.BitLength(), _owner->random, 0);
     } while (!CheckRange(_xy));
     
-    LargeNumber *ef = g->PowerMod(_xy, p);
-    ef->AddRef();
+    BigNumber ef = g.PowerMod(_xy, p);
     
     switch (_mode) {
         case Client:
@@ -120,12 +100,10 @@ void diffieHellman::HandlePayload(sshBlob *data)
             if (_mode != Server)
                 _owner->Panic(sshTransport::prInvalidMessage);
             _e = reader.ReadMPInt();
-            _e->AddRef();
             // Compute key
 //            if (!CheckRange(_e))
 //                _owner->Panic(sshTransport::prOutOfRange);
-            key = _e->PowerMod(_xy, Prime());
-            key->AddRef();
+            key = _e.PowerMod(_xy, Prime());
             // Reply
             
             break;
@@ -135,14 +113,12 @@ void diffieHellman::HandlePayload(sshBlob *data)
             _hostKey = reader.ReadString();
             _hostKey->AddRef();
             _f = reader.ReadMPInt();
-            _f->AddRef();
             sshString *_signature = reader.ReadString();
             _signature->AddRef();
             // Compute key
             if (!CheckRange(_f))
                 _owner->Panic(sshTransport::prOutOfRange);
-            key = _f->PowerMod(_xy, Prime());
-            key->AddRef();
+            key = _f.PowerMod(_xy, Prime());
             // Calculate hash
             exchangeHash = MakeHash();
             exchangeHash->AddRef();
@@ -227,18 +203,14 @@ dhGroup1::dhGroup1(sshTransport *owner, TransportMode mode)
     hash = &dh_hash;
 }
 
-LargeNumber* dhGroup1::Prime(void)
+BigNumber dhGroup1::Prime(void)
 {
-    LargeNumber *result = new LargeNumber(diffieHellman_group1, sizeof(diffieHellman_group1) / sizeof(diffieHellman_group1[0]), true);
-    result->Autorelease();
-    return result;
+    return BigNumber(diffieHellman_group1, sizeof(diffieHellman_group1) / sizeof(diffieHellman_group1[0]), true);
 }
 
-LargeNumber* dhGroup1::Generator(void)
+BigNumber dhGroup1::Generator(void)
 {
-    LargeNumber *result = new LargeNumber(2);
-    result->Autorelease();
-    return result;
+    return 2;
 }
 
 const UInt32 diffieHellman_group14[] = {
@@ -261,16 +233,12 @@ dhGroup14::dhGroup14(sshTransport *owner, TransportMode mode)
     hash = &dh_hash;
 }
 
-LargeNumber* dhGroup14::Prime(void)
+BigNumber dhGroup14::Prime(void)
 {
-    LargeNumber *result = new LargeNumber(diffieHellman_group14, sizeof(diffieHellman_group14) / sizeof(diffieHellman_group14[0]), true);
-    result->Autorelease();
-    return result;
+    return BigNumber(diffieHellman_group14, sizeof(diffieHellman_group14) / sizeof(diffieHellman_group14[0]), true);
 }
 
-LargeNumber* dhGroup14::Generator(void)
+BigNumber dhGroup14::Generator(void)
 {
-    LargeNumber *result = new LargeNumber(2);
-    result->Autorelease();
-    return result;
+    return 2;
 }

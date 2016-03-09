@@ -11,35 +11,23 @@
 #include "Hash.h"
 
 namespace RSA {
-    Key::Key(LargeNumber *n, LargeNumber *e)
+    Key::Key(BigNumber n, BigNumber e)
     {
         this->n = n;
-        n->AddRef();
         this->e = e;
-        e->AddRef();
-    }
-    Key::~Key()
-    {
-        n->Release();
-        e->Release();
     }
     
     // 5.2.1 RSASP1
-    LargeNumber* RSASP1(Key *key, LargeNumber *m)
+    BigNumber RSASP1(Key *key, BigNumber m)
     {
         // 1. If the message representative m is not between 0 and n - 1,
         //    output "message representative out of range" and stop.
-        LargeNumber *zero = new LargeNumber(0);
-        zero->Autorelease();
-        LargeNumber *one = new LargeNumber(1);
-        LargeNumber *n1 = key->n->Subtract(one);
-        one->Release();
-        if ((m->Compare(zero) <= 0) || (m->Compare(n1) >= 0))
-            return NULL;
+        if ((m <= 0) || (m >= (key->n - 1)))
+            throw "Error";
         
         // 2. The signature representative s is computed as follows.
         //   a. If the first form (n, d) of K is used, let s = m^d mod n.
-        LargeNumber *s = m->PowerMod(key->e, key->n);
+        BigNumber s = m.PowerMod(key->e, key->n);
         
         //   b. If the second form (p, q, dP, dQ, qInv) and (r_i, d_i, t_i)
         //      of K is used, proceed as follows:
@@ -58,36 +46,29 @@ namespace RSA {
     }
     
     // 5.2.2 RSAVP1
-    LargeNumber* RSAVP1(Key *key, LargeNumber *s)
+    BigNumber RSAVP1(Key *key, BigNumber s)
     {
         // 1. If the signature representative s is not between 0 and n - 1,
         //    output "signature representative out of range" and stop.
-        LargeNumber *zero = new LargeNumber(0);
-        bool overZero = zero->Compare(s) > 0;
-        zero->Release();
-        LargeNumber *one = new LargeNumber(1);
-        LargeNumber *nMinus1 = key->n->Subtract(one);
-        one->Release();
-        bool underNMinus1 = s->Compare(nMinus1) > 0;
-        if (!overZero || !underNMinus1)
-            return NULL;
+        if ((s <= 0) || (s >= (key->n - 1)))
+            throw "Error";
         
         // 2. Let m = s^e mod n.
-        LargeNumber *m = s->PowerMod(key->e, key->n);
+        BigNumber m = s.PowerMod(key->e, key->n);
         
         // 3. Output m.
         return m;
     }
     
-    static int ModularInverse(int a, int n)
+    static BigNumber ModularInverse(BigNumber a, BigNumber n)
     {
-        int t = 0; int newt = 1;
-        int r = n; int newr = a;
+        BigNumber t = 0; BigNumber newt = 1;
+        BigNumber r = n; BigNumber newr = a;
         while (newr != 0) {
-            int quotient = r / newr;
-            int t2 = newt; int newt2 = t - quotient * newt;
+            BigNumber quotient = r / newr;
+            BigNumber t2 = newt; BigNumber newt2 = t - quotient * newt;
             t = t2; newt = newt2;
-            int r2 = newr; int newr2 = r - quotient * newr;
+            BigNumber r2 = newr; BigNumber newr2 = r - quotient * newr;
             r = r2; newr = newr2;
         }
         if (r > 1)
@@ -99,33 +80,23 @@ namespace RSA {
 
     KeySet::KeySet(RandomSource *random, int bits)
     {
-        LargeNumber *p = new LargeNumber(bits, random, 100);
-        LargeNumber *q = new LargeNumber(bits, random, 100);
-        LargeNumber *n = p->Multiply(q);
-        LargeNumber *one = new LargeNumber(1);
-        LargeNumber *p1 = p->Subtract(one);
-        LargeNumber *q1 = q->Subtract(one);
-        LargeNumber *on = p1->Multiply(q1);
-        one->Release();
-        LargeNumber *e = new LargeNumber(65537);
+        BigNumber p = BigNumber(bits, random, 100);
+        BigNumber q = BigNumber(bits, random, 100);
+        BigNumber n = p * q;
+        BigNumber p1 = p - 1;
+        BigNumber q1 = q - 1;
+        BigNumber on = p1 * q1;
+        BigNumber e = 65537;
         while (true) {
-            LargeNumber *rem;
-            on->Divide(e, &rem);
-            bool good = !rem->IsZero();
-            rem->Release();
-            if (good)
+            if ((on % e) != 0)
                 break;
             do {
-                e->Release();
-                e = new LargeNumber(on->Length(), random, 100);
-            } while (e->Compare(on) >= 0);
+                e = BigNumber(on.BitLength(), random, 100);
+            } while (e >= on);
         }
-        LargeNumber *d = ModularInverse(e, on);
+        BigNumber d = ModularInverse(e, on);
         publicKey = new Key(n, e);
         privateKey = new Key(n, d);
-        e->Release();
-        p->Release();
-        q->Release();
     }
     
     KeySet::~KeySet()
@@ -199,16 +170,14 @@ namespace RSA {
         return EM;
     }
     
-    LargeNumber* OS2IP(sshBlob *blob)
+    BigNumber OS2IP(sshBlob *blob)
     {
-        LargeNumber *result = new LargeNumber(blob->Value(), blob->Length(), false);
-        result->Autorelease();
-        return result;
+        return BigNumber(blob->Value(), blob->Length(), false);
     }
     
-    sshBlob* I2OSP(LargeNumber *value, int k)
+    sshBlob* I2OSP(BigNumber value, int k)
     {
-        sshBlob *result = value->Data();
+        sshBlob *result = value.Data();
         if (result->Length() < k) {
             // Pad with 0
             sshBlob *newResult = new sshBlob();
@@ -233,7 +202,7 @@ namespace RSA {
     // 8.2.1 Signature generation operation
     sshBlob *SSA_PKCS1_V1_5::Sign(Key *privateKey, sshBlob *M, HashType *hash)
     {
-        int k = (privateKey->n->Length() + 7) / 8;
+        int k = (privateKey->n.BitLength() + 7) / 8;
 
         // 1. EMSA-PKCS1-v1_5 encoding: Apply the EMSA-PKCS1-v1_5 encoding
         //    operation (Section 9.2) to the message M to produce an encoded
@@ -249,13 +218,13 @@ namespace RSA {
         //  a. Convert the encoded message EM to an integer message
         //     representative m (see Section 4.2):
         //       m = OS2IP (EM).
-        LargeNumber *m = OS2IP(EM);
+        BigNumber m = OS2IP(EM);
         
         //  b. Apply the RSASP1 signature primitive (Section 5.2.1) to the RSA
         //     private key K and the message representative m to produce an
         //     integer signature representative s:
         //       s = RSASP1 (K, m).
-        LargeNumber *s = RSASP1(privateKey, m);
+        BigNumber s = RSASP1(privateKey, m);
         
         //  c. Convert the signature representative s to a signature S of
         //     length k octets (see Section 4.1):
@@ -269,7 +238,7 @@ namespace RSA {
     // 8.2.2 Signature verification operation
     bool SSA_PKCS1_V1_5::Verify(Key *publicKey, sshBlob *M, sshBlob *S, HashType *hash)
     {
-        int k = (publicKey->n->Length() + 7) / 8;
+        int k = (publicKey->n.BitLength() + 7) / 8;
         
         // 1. Length checking: If the length of the signature S is not k octets,
         //    output "invalid signature" and stop.
@@ -280,8 +249,7 @@ namespace RSA {
         //    a. Convert the signature S to an integer signature representative
         //       s (see Section 4.2):
         //          s = OS2IP (S).
-        LargeNumber *s = new LargeNumber(S->Value(), S->Length(), false);
-        s->Autorelease();
+        BigNumber s = OS2IP(S);
         
         //    b. Apply the RSAVP1 verification primitive (Section 5.2.2) to the
         //       RSA public key (n, e) and the signature representative s to
@@ -289,16 +257,14 @@ namespace RSA {
         //          m = RSAVP1 ((n, e), s).
         //       If RSAVP1 outputs "signature representative out of range,"
         //       output "invalid signature" and stop.
-        LargeNumber *m = RSAVP1(publicKey, s);
-        if (m == NULL)
-            return false;
+        BigNumber m = RSAVP1(publicKey, s);
         
         //    c. Convert the message representative m to an encoded message EM
         //       of length k octets (see Section 4.1):
         //          EM = I2OSP (m, k).
         //       If I2OSP outputs "integer too large," output "invalid
         //       signature" and stop.
-        sshBlob *EM = m->Data();
+        sshBlob *EM = m.Data();
         if (EM->Length() < k) {
             // Pad with 0
             sshBlob *newEM = new sshBlob();

@@ -9,9 +9,9 @@
 #ifndef minissh_Types_h
 #define minissh_Types_h
 
-//#define DEBUG_KEX
-//#define DEBUG_LOG_TRANSFER_INFO
-//#define DEBUG_LOG_STATE_INFO
+#define DEBUG_KEX
+#define DEBUG_LOG_TRANSFER_INFO
+#define DEBUG_LOG_STATE_INFO
 
 #ifdef DEBUG_LOG_STATE_INFO
 #define DEBUG_LOG_STATE(x)          printf x
@@ -24,14 +24,10 @@
 #define DEBUG_LOG_TRANSFER(x)
 #endif
 
-typedef unsigned char Byte;
-typedef unsigned short UInt16;
-typedef unsigned int UInt32;
-typedef unsigned long long UInt64;
+#include "Maths.h"
 
 #ifdef __cplusplus
 
-class LargeNumber;
 class sshBlob;
 
 namespace sshTypes_Internal {
@@ -177,7 +173,7 @@ public:
     UInt32 ReadUInt32(void);
     UInt64 ReadUInt64(void);
     sshString* ReadString(void);
-    LargeNumber* ReadMPInt(void);
+    BigNumber ReadMPInt(void);
     sshNameList* ReadNameList(void);
     void SkipBytes(int length);
     
@@ -200,7 +196,7 @@ public:
     void Write(UInt32 value);
     void Write(UInt64 value);
     void Write(sshString *string);
-    void Write(LargeNumber *value);
+    void Write(BigNumber &value);
     void Write(sshNameList *nameList);
     
 private:

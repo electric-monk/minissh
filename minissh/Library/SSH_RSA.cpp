@@ -27,11 +27,9 @@ bool SSH_RSA::Verify(sshString *hostKey, sshString *signature, sshString *messag
     sshString *tag = hostKeyReader.ReadString();
     if (!tag->IsEqual("ssh-rsa"))
         return false;
-    LargeNumber *e = hostKeyReader.ReadMPInt();
-    LargeNumber *n = hostKeyReader.ReadMPInt();
+    BigNumber e = hostKeyReader.ReadMPInt();
+    BigNumber n = hostKeyReader.ReadMPInt();
     RSA::Key *key = new RSA::Key(n, e);
-    e->Release();
-    n->Release();
     sshReader signatureReader(signature);
     sshString *tag2 = signatureReader.ReadString();
     if (!tag2->IsEqual("ssh-rsa"))

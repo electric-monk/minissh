@@ -644,16 +644,13 @@ sshString* sshReader::ReadString(void)
     return result;
 }
 
-LargeNumber* sshReader::ReadMPInt(void)
+BigNumber sshReader::ReadMPInt(void)
 {
     sshString *value = ReadString();
-    LargeNumber *result;
     if (value->Length() == 0)
-        result = new LargeNumber(0);
+        return 0;
     else
-        result = new LargeNumber(value->Value(), value->Length());
-    result->Autorelease();
-    return result;
+        return BigNumber(value->Value(), value->Length());
 }
 
 static void AddEntry(sshNameList *list, const char *s, int l)
@@ -735,9 +732,9 @@ void sshWriter::Write(sshString *string)
     _blob->Append((Byte*)string->Value(), string->Length());
 }
 
-void sshWriter::Write(LargeNumber *value)
+void sshWriter::Write(BigNumber &value)
 {
-    sshBlob *blob = value->Data();
+    sshBlob *blob = value.Data();
     Write((UInt32)blob->Length());
     _blob->Append(blob->Value(), blob->Length());
 }

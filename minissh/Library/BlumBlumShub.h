@@ -22,15 +22,12 @@ public:
     // RandomSource
     UInt32 Random(void);
     
-protected:
-    ~BlumBlumShub();
-    
 private:
-    static LargeNumber* GetPrime(int bits, RandomSource *source);
-    static LargeNumber* GenerateN(int bits, RandomSource *source);
+    static BigNumber GetPrime(int bits, RandomSource *source);
+    static BigNumber GenerateN(int bits, RandomSource *source);
     
-    LargeNumber *_state;
-    LargeNumber *_n;
+    BigNumber _state;
+    BigNumber _n;
 };
 
 #endif /* defined(__minissh__BlumBlumShub__) */

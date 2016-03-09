@@ -12,20 +12,16 @@
 #include "Types.h"
 
 class HashType;
-class LargeNumber;
 class RandomSource;
 
 namespace RSA {
     class Key : public sshObject
     {
     public:
-        Key(LargeNumber *n, LargeNumber *e);
+        Key(BigNumber n, BigNumber e);
     
-        LargeNumber *n;
-        LargeNumber *e;
-        
-    protected:
-        ~Key();
+        BigNumber n;
+        BigNumber e;
     };
     
     class KeySet : public sshObject
