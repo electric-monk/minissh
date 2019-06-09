@@ -155,6 +155,7 @@ sshString::sshString(sshBlob *blob)
 
 sshString::~sshString()
 {
+    memset(_data, 0, _len);
     delete[] _data;
 }
 
@@ -191,6 +192,7 @@ bool sshString::IsEqual(const char *other) const
 
 void sshString::Reset(void)
 {
+    memset(_data, 0, _len);
     _len = 0;
 }
 
