@@ -113,7 +113,13 @@ namespace sshTransport_Internal {
         const Byte *bytes = blob->Value();
         int length = blob->Length();
         // Find CR-LF
-        int location = MatchCharacters(bytes, length, crlf, (int)strlen(crlf));
+        int tostrip = (int)strlen(crlf);
+        int location = MatchCharacters(bytes, length, crlf, tostrip);
+        if (location == -1) {
+            // Turns out sometimes OpenSSH breaks the standard and only sends LF
+            tostrip = (int)strlen(crlf) - 1;
+            location = MatchCharacters(bytes, length, crlf + 1, tostrip);
+        }
         if (location == -1)
             return NULL;
         // Make a string
@@ -123,7 +129,7 @@ namespace sshTransport_Internal {
             result->Append((char*)bytes, location);
         }
         // Remove used data
-        blob->Strip(0, location + (int)strlen(crlf));
+        blob->Strip(0, location + tostrip);
         // Done
         return result;
     }
@@ -594,6 +600,8 @@ sshTransport::sshTransport()
 {
     mode = Client;
     
+    _delegate = NULL;
+    
     inputBuffer = new sshBlob();
     configuration = new sshConfiguration();
     _handler = NULL;
@@ -792,8 +800,6 @@ void sshTransport::Send(sshBlob *payload)
     int minimumPadding = 4;    // Minimum 4 padding
     int minimumLength = /*packet_length*/ 4 + /*padding_length*/ 1 + payload->Length() + minimumPadding;
     minimumPadding += blockSize - (minimumLength % blockSize);
-    int paddingScale = (255 - minimumPadding) / blockSize;
-//    int padding = minimumPadding + ((random->Random() % paddingScale) * blockSize);
     int padding = minimumPadding;
     
     sshBlob *packet = new sshBlob();
