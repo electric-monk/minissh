@@ -9,9 +9,11 @@
 #ifndef minissh_Types_h
 #define minissh_Types_h
 
+#ifdef _DEBUG
 #define DEBUG_KEX
 #define DEBUG_LOG_TRANSFER_INFO
 #define DEBUG_LOG_STATE_INFO
+#endif
 
 #ifdef DEBUG_LOG_STATE_INFO
 #define DEBUG_LOG_STATE(x)          printf x
