@@ -6,7 +6,7 @@ A small SSH client, with no dependencies.
 
 Whilst primarily an encryption learning exercise, this was also designed to be a library that could be embedded within an application, or possibly even run on a microcontroller. Both the functionality and communications layer are modular, so it could run over TCP, RS232 or whatever agnostically.
 
-For this reason the code has no library dependencies whatsoever (including STL which can be flakey on the weirder platforms), and expects you to provide a secure random source and I/O. On the flip side, it does not require threads and you can also open/close streams within the session freely.
+For this reason the code has no library dependencies whatsoever (though it currently depends on STL, which ideally is provided with your compiler), and expects you to provide a secure random source and I/O. On the flip side, it does not require threads and you can also open/close streams within the session freely.
 
 ## To use
 
@@ -14,6 +14,6 @@ Though it's plain C++, it was developed on MacOS X, so an Xcode project is provi
 
 ## Next steps
 
-- Currently it uses some Objective C-style memory management, when C++-style smart pointers would be better. However, in order to be as portable as possible, it does not use STL, so the smart pointers will need to be implemented manually.
+- It's been updated to use STL smart pointers and strings, however this has increased the binary size by ~200K. Custom implementations may help for embedded purposes. It's also C++17, which may be a bit new for some purposes. On the plus side, the code is more clear to follow.
+- Blob class needs to be upgraded to be more efficient, by internally sharing pointers/etc.
 - Key storage, which is required for server support (which in itself should be trivial as most of the client code will also function in server mode)
-
