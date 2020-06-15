@@ -3,58 +3,54 @@
 //  minissh
 //
 //  Created by Colin David Munro on 9/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include <memory.h>
 #include "Hash.h"
 #include "sha1.h"
 
-HashType::Token::~Token()
-{
-}
+namespace minissh::Hash {
 
-class SHA1_Token : public HashType::Token
+namespace {
+    
+class SHA1_Token : public Type::Token
 {
 public:
     SHA1_Token()
     {
-        SHA1_Init(&_context);
+        _context.Init();
     }
     
     void Update(const Byte *data, UInt32 length)
     {
-        SHA1_Update(&_context, data, length);
+        _context.Update(data, length);
     }
     
-    sshBlob* End(void)
+    std::optional<Types::Blob> End(void)
     {
         Byte result[SHA1_DIGEST_SIZE];
-        
-        SHA1_Final(&_context, result);
-        
-        sshBlob *object = new sshBlob();
-        object->Append(result, sizeof(result));
-        object->Autorelease();
-        
-        delete this;
+        _context.Final(result);
+        Types::Blob object;
+        object.Append(result, sizeof(result));
         return object;
     }
     
 private:
     SHA1_CTX _context;
 };
+    
+} // namespace
 
-sshBlob* SHA1::EMSA_PKCS1_V1_5_Prefix(void)
+Types::Blob SHA1::EMSA_PKCS1_V1_5_Prefix(void) const
 {
-    const Byte prefix[] = {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14};
-    sshBlob *object = new sshBlob();
-    object->Append(prefix, sizeof(prefix));
-    object->Autorelease();
-    return object;
+    static const Byte prefix[] = {0x30, 0x21, 0x30, 0x09, 0x06, 0x05, 0x2b, 0x0e, 0x03, 0x02, 0x1a, 0x05, 0x00, 0x04, 0x14};
+    return Types::Blob(prefix, sizeof(prefix));
 }
 
-HashType::Token* SHA1::Start(void)
+std::shared_ptr<Type::Token> SHA1::Start(void) const
 {
-    return new SHA1_Token();
+    return std::make_shared<SHA1_Token>();
 }
+
+} // namespace minissh::Hash

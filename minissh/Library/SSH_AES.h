@@ -3,160 +3,129 @@
 //  minissh
 //
 //  Created by Colin David Munro on 9/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__aescbc__
-#define __minissh__aescbc__
+#pragma once
 
 #include "Transport.h"
+#include "Operations.h"
+#include "AES.h"
 
-class AES;
-class OperationCBC;
-class OperationCTR;
+namespace minissh::Algorithm {
 
-class AES_CBC : public sshEncryptionAlgorithm
+class AES_CBC : public Transport::EncryptionAlgorithm
 {
 public:
-    AES_CBC(sshTransport *owner, TransportMode mode, int keySize);
+    AES_CBC(Transport::Transport& owner, Transport::Mode mode, int keySize);
     
     int BlockSize(void);
     
-    sshBlob* Encrypt(sshBlob *data);
-    sshBlob* Decrypt(sshBlob *data);
-  
-protected:
-    ~AES_CBC();
+    Types::Blob Encrypt(Types::Blob data);
+    Types::Blob Decrypt(Types::Blob data);
     
 private:
-    AES *_cypher;
-    OperationCBC *_operation;
+    AES _cypher;
+    OperationCBC _operation;
 };
 
 class AES128_CBC : public AES_CBC
 {
 public:
-    AES128_CBC(sshTransport *owner, TransportMode mode)
+    AES128_CBC(Transport::Transport& owner, Transport::Mode mode)
     :AES_CBC(owner, mode, 128)
     {
     }
 
-    class Factory : public sshConfiguration::FactoryTemplate<AES128_CBC>
+    static constexpr char Name[] = "aes128-cbc";
+    class Factory : public Transport::Configuration::Instantiatable<AES128_CBC, Transport::EncryptionAlgorithm>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "aes128-cbc";
-        }
     };
 };
 
 class AES192_CBC : public AES_CBC
 {
 public:
-    AES192_CBC(sshTransport *owner, TransportMode mode)
+    AES192_CBC(Transport::Transport& owner, Transport::Mode mode)
     :AES_CBC(owner, mode, 192)
     {
     }
     
-    class Factory : public sshConfiguration::FactoryTemplate<AES192_CBC>
+    static constexpr char Name[] = "aes192-cbc";
+    class Factory : public Transport::Configuration::Instantiatable<AES192_CBC, Transport::EncryptionAlgorithm>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "aes192-cbc";
-        }
     };
 };
 
 class AES256_CBC : public AES_CBC
 {
 public:
-    AES256_CBC(sshTransport *owner, TransportMode mode)
+    AES256_CBC(Transport::Transport& owner, Transport::Mode mode)
     :AES_CBC(owner, mode, 256)
     {
     }
     
-    class Factory : public sshConfiguration::FactoryTemplate<AES256_CBC>
+    static constexpr char Name[] = "aes256-cbc";
+    class Factory : public Transport::Configuration::Instantiatable<AES256_CBC, Transport::EncryptionAlgorithm>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "aes256-cbc";
-        }
     };
 };
 
-class AES_CTR : public sshEncryptionAlgorithm
+class AES_CTR : public Transport::EncryptionAlgorithm
 {
 public:
-    AES_CTR(sshTransport *owner, TransportMode mode, int keySize);
+    AES_CTR(Transport::Transport& owner, Transport::Mode mode, int keySize);
     
     int BlockSize(void);
     
-    sshBlob* Encrypt(sshBlob *data);
-    sshBlob* Decrypt(sshBlob *data);
-    
-protected:
-    ~AES_CTR();
+    Types::Blob Encrypt(Types::Blob data);
+    Types::Blob Decrypt(Types::Blob data);
     
 private:
-    AES *_cypher;
-    OperationCTR *_operation;
+    AES _cypher;
+    OperationCTR _operation;
 };
 
 class AES128_CTR : public AES_CTR
 {
 public:
-    AES128_CTR(sshTransport *owner, TransportMode mode)
+    AES128_CTR(Transport::Transport& owner, Transport::Mode mode)
     :AES_CTR(owner, mode, 128)
     {
     }
     
-    class Factory : public sshConfiguration::FactoryTemplate<AES128_CTR>
+    static constexpr char Name[] = "aes128-ctr";
+    class Factory : public Transport::Configuration::Instantiatable<AES128_CTR, Transport::EncryptionAlgorithm>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "aes128-ctr";
-        }
     };
 };
 
 class AES192_CTR : public AES_CTR
 {
 public:
-    AES192_CTR(sshTransport *owner, TransportMode mode)
+    AES192_CTR(Transport::Transport& owner, Transport::Mode mode)
     :AES_CTR(owner, mode, 192)
     {
     }
     
-    class Factory : public sshConfiguration::FactoryTemplate<AES192_CTR>
+    static constexpr char Name[] = "aes192-ctr";
+    class Factory : public Transport::Configuration::Instantiatable<AES192_CTR, Transport::EncryptionAlgorithm>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "aes192-ctr";
-        }
     };
 };
 
 class AES256_CTR : public AES_CTR
 {
 public:
-    AES256_CTR(sshTransport *owner, TransportMode mode)
+    AES256_CTR(Transport::Transport& owner, Transport::Mode mode)
     :AES_CTR(owner, mode, 256)
     {
     }
     
-    class Factory : public sshConfiguration::FactoryTemplate<AES256_CTR>
+    static constexpr char Name[] = "aes256-ctr";
+    class Factory : public Transport::Configuration::Instantiatable<AES256_CTR, Transport::EncryptionAlgorithm>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "aes256-ctr";
-        }
     };
 };
 
-#endif /* defined(__minissh__aescbc__) */
+} // namespace minissh::Algorithm

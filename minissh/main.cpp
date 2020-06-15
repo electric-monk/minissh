@@ -3,7 +3,7 @@
 //  minissh
 //
 //  Created by Colin David Munro on 10/01/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include <stdio.h>          /* stderr, stdout */
@@ -46,7 +46,7 @@ struct sockaddr_in getipa(const char* hostname, int port){
 	return ipa;
 }
 
-class SocketTest : public sshTransport::Delegate
+class SocketTest : public minissh::Core::Client::Delegate
 {
 public:
     SocketTest(const char *host, unsigned short port)
@@ -60,14 +60,15 @@ public:
         session = NULL;
     }
     
-    void Send(const void *data, UInt32 length)
+    void Send(const void *data, minissh::UInt32 length)
     {
         send(_sock, data, length, 0);
     }
     
-    void Failed(sshTransport::PanicReason reason)
+    void Failed(minissh::Core::Client::PanicReason reason)
     {
-        fprintf(stderr, "Failure: %i\n", reason);
+        fprintf(stderr, "Failure [%i]: %s\n", reason, minissh::Core::Client::StringForPanicReason(reason).c_str());
+        exit(-1);
     }
     
     void Run(void)
@@ -101,8 +102,8 @@ public:
         }
     }
     
-    sshTransport *transport;
-    sshSession *session;
+    minissh::Transport::Transport *transport;
+    std::shared_ptr<minissh::Core::Session> session;
     
 protected:
     ~SocketTest()
@@ -113,105 +114,86 @@ protected:
     int _sock;
 };
 
-class TestRandom : public RandomSource
+class TestRandom : public minissh::Maths::RandomSource
 {
 public:
-    UInt32 Random(void)
+    TestRandom()
+    {
+        srand(time(NULL));
+    }
+    
+    minissh::UInt32 Random(void) override
     {
         // WARNING: This is not secure, but just for testing.
         return rand();
     }
 };
 
-sshString* t(const char *s)
-{
-    sshString *r = new sshString();
-    r->AppendFormat("%s", s);
-    r->Autorelease();
-    return r;
-}
-
-class TestAuthentication : public SshClient::Authenticator
+class TestAuthentication : public minissh::Client::Authenticator
 {
 public:
-    void Banner(Replier *replier, sshString *message, sshString *languageTag)
+    void Banner(Replier *replier, const std::string& message, const std::string& languageTag) override
     {
-        char *temp = new char[message->Length() + 1];
-        memcpy(temp, message->Value(), message->Length());
-        temp[message->Length()] = 0;
-        printf("BANNER: %s\n", temp);
-        delete[] temp;
+        printf("BANNER: %s\n", message.c_str());
     }
     
-    void Query(Replier *replier, sshNameList *acceptedModes, bool partiallyAccepted)
+    void Query(Replier *replier, const std::optional<std::vector<std::string>>& acceptedModes, bool partiallyAccepted) override
     {
         // This is demo code - not thoroughly safe!
-        sshString *username = new sshString();
-        char *rawuser = NULL;
+        char *username = NULL;
         size_t linecap = 0;
         printf("Username: ");
-        ssize_t linelen = getline(&rawuser, &linecap, stdin);
-        rawuser[linelen - 1] = '\0';    // Remove newline
-        username->AppendFormat(rawuser);
-        sshString *password = new sshString();
-        char *rawpass = getpass("Password: ");
-        password->AppendFormat(rawpass);
-        memset(rawpass, 0, password->Length());
+        ssize_t linelen = getline(&username, &linecap, stdin);
+        username[linelen - 1] = '\0';    // Remove newline
+        char *password = getpass("Password: ");
         replier->SendPassword(username, password);
-        username->Release();
-        password->Release();
     }
     
-    void NeedChangePassword(Replier *replier, sshString *prompt, sshString *languageTag)
+    void NeedChangePassword(Replier *replier, const std::string& prompt, const std::string& languageTag) override
     {
-        printf("Server says we need to change password\n");
+        printf("Server says we need to change password (%s)\n", prompt.c_str());
     }
 };
 
 int main(int argc, const char * argv[])
 {
-    sshObject::Releaser releaser;
-    
     if (argc < 2) {
         printf("usage: %s <host> [<port>]\n", argv[0]);
         return -1;
     }
     uint16_t portnum = 22;
-    TestAuthentication *testAuth;
     if (argc == 3)
         portnum = atoi(argv[2]);
     SocketTest *test = new SocketTest(argv[1], portnum);
-    sshClient *client = new sshClient();
-    test->transport = client;
-    sshConfiguration::Factory::AddTo<dhGroup14::Factory>(test->transport->configuration->supportedKeyExchanges);
-    sshConfiguration::Factory::AddTo<dhGroup1::Factory>(test->transport->configuration->supportedKeyExchanges);
-    sshConfiguration::Factory::AddTo<SSH_RSA::Factory>(test->transport->configuration->serverHostKeyAlgorithms);
-    sshConfiguration::Factory::AddTo<AES128_CBC::Factory>(test->transport->configuration->encryptionAlgorithms_clientToServer);
-    sshConfiguration::Factory::AddTo<AES128_CBC::Factory>(test->transport->configuration->encryptionAlgorithms_serverToClient);
-//    sshConfiguration::Factory::AddTo<AES192_CBC::Factory>(test->transport->configuration->encryptionAlgorithms_clientToServer);
-//    sshConfiguration::Factory::AddTo<AES192_CBC::Factory>(test->transport->configuration->encryptionAlgorithms_serverToClient);
-//    sshConfiguration::Factory::AddTo<AES256_CBC::Factory>(test->transport->configuration->encryptionAlgorithms_clientToServer);
-//    sshConfiguration::Factory::AddTo<AES256_CBC::Factory>(test->transport->configuration->encryptionAlgorithms_serverToClient);
-    sshConfiguration::Factory::AddTo<AES128_CTR::Factory>(test->transport->configuration->encryptionAlgorithms_clientToServer);
-    sshConfiguration::Factory::AddTo<AES128_CTR::Factory>(test->transport->configuration->encryptionAlgorithms_serverToClient);
-//    sshConfiguration::Factory::AddTo<AES192_CTR::Factory>(test->transport->configuration->encryptionAlgorithms_clientToServer);
-//    sshConfiguration::Factory::AddTo<AES192_CTR::Factory>(test->transport->configuration->encryptionAlgorithms_serverToClient);
-//    sshConfiguration::Factory::AddTo<AES256_CTR::Factory>(test->transport->configuration->encryptionAlgorithms_clientToServer);
-//    sshConfiguration::Factory::AddTo<AES256_CTR::Factory>(test->transport->configuration->encryptionAlgorithms_serverToClient);
-    sshConfiguration::Factory::AddTo<HMAC_SHA1::Factory>(test->transport->configuration->macAlgorithms_clientToServer);
-    sshConfiguration::Factory::AddTo<HMAC_SHA1::Factory>(test->transport->configuration->macAlgorithms_serverToClient);
-    sshObject *testtemp = new sshObject();
-    test->transport->configuration->compressionAlgorithms_clientToServer->Set(t("none"), testtemp);
-    test->transport->configuration->compressionAlgorithms_serverToClient->Set(t("none"), testtemp);
-    test->transport->random = new TestRandom();
+    TestRandom randomiser;
+    minissh::Core::Client client(randomiser);
+    test->transport = &client;
+    minissh::Algorithms::DiffieHellman::Group14::Factory::Add(test->transport->configuration.supportedKeyExchanges);
+    minissh::Algorithms::DiffieHellman::Group1::Factory::Add(test->transport->configuration.supportedKeyExchanges);
+    minissh::Algoriths::SSH_RSA::Factory::Add(test->transport->configuration.serverHostKeyAlgorithms);
+    minissh::Algorithm::AES128_CBC::Factory::Add(test->transport->configuration.encryptionAlgorithms_clientToServer);
+    minissh::Algorithm::AES128_CBC::Factory::Add(test->transport->configuration.encryptionAlgorithms_serverToClient);
+    //minissh::Algorithm::AES192_CBC::Factory::Add(test->transport->configuration.encryptionAlgorithms_clientToServer);
+    //minissh::Algorithm::AES192_CBC::Factory::Add(test->transport->configuration.encryptionAlgorithms_serverToClient);
+    //minissh::Algorithm::AES256_CBC::Factory::Add(test->transport->configuration.encryptionAlgorithms_clientToServer);
+    //minissh::Algorithm::AES256_CBC::Factory::Add(test->transport->configuration.encryptionAlgorithms_serverToClient);
+    minissh::Algorithm::AES128_CTR::Factory::Add(test->transport->configuration.encryptionAlgorithms_clientToServer);
+    minissh::Algorithm::AES128_CTR::Factory::Add(test->transport->configuration.encryptionAlgorithms_serverToClient);
+    //minissh::Algorithm::AES192_CTR::Factory::Add(test->transport->configuration.encryptionAlgorithms_clientToServer);
+    //minissh::Algorithm::AES192_CTR::Factory::Add(test->transport->configuration.encryptionAlgorithms_serverToClient);
+    //minissh::Algorithm::AES256_CTR::Factory::Add(test->transport->configuration.encryptionAlgorithms_clientToServer);
+    //minissh::Algorithm::AES256_CTR::Factory::Add(test->transport->configuration.encryptionAlgorithms_serverToClient);
+    minissh::Algorithm::HMAC_SHA1::Factory::Add(test->transport->configuration.macAlgorithms_clientToServer);
+    minissh::Algorithm::HMAC_SHA1::Factory::Add(test->transport->configuration.macAlgorithms_serverToClient);
+    minissh::Transport::NoneCompression::Factory::Add(test->transport->configuration.compressionAlgorithms_clientToServer);
+    minissh::Transport::NoneCompression::Factory::Add(test->transport->configuration.compressionAlgorithms_serverToClient);
     test->transport->SetDelegate(test);
-    SshClient::Auth *auth = new SshClient::Auth(client, client->DefaultEnabler());
-    testAuth = new TestAuthentication();
-    auth->SetAuthenticator(testAuth);
-    testAuth->Release();
-    sshConnection *connection = new sshConnection(client, auth->AuthEnabler());
-    sshSession *session = new sshSession(connection);
-    connection->OpenChannel(session);
+    minissh::Client::AuthService *auth = new minissh::Client::AuthService(client, client.DefaultEnabler());
+    TestAuthentication testAuth;
+    auth->SetAuthenticator(&testAuth);
+    minissh::Core::Connection connection(client, auth->AuthEnabler());
+    std::shared_ptr<minissh::Core::Session> session = std::make_shared<minissh::Core::Session>(connection);
+    connection.OpenChannel(session);
     test->session = session;
     test->transport->Start();
     test->Run();

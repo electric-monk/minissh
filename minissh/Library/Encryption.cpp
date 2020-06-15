@@ -1,33 +1,20 @@
 #include "Encryption.h"
 
-Encryption::Encryption(sshBlob *key)
+namespace minissh::Algorithm {
+
+Encryption::Encryption(Types::Blob key)
+:_key(key)
 {
-    _key = key;
-    _key->AddRef();
 }
 
-Encryption::~Encryption()
+Operation::Operation(Encryption& encryption, Types::Blob initialisationVector)
+:_encryption(encryption), _currentVector(initialisationVector)
 {
-    _key->Release();
 }
 
-Operation::Operation(Encryption *encryption, sshBlob *initialisationVector)
+void Operation::SetVector(Types::Blob vector)
 {
-    _encryption = encryption;
-    _encryption->AddRef();
-    _currentVector = initialisationVector;
-    _currentVector->AddRef();
-}
-
-Operation::~Operation()
-{
-    _currentVector->Release();
-    _encryption->Release();
-}
-
-void Operation::SetVector(sshBlob *vector)
-{
-    _currentVector->Release();
     _currentVector = vector;
-    _currentVector->AddRef();
 }
+
+} // namespace minissh::Algorithm

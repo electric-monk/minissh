@@ -3,71 +3,81 @@
 //  minissh
 //
 //  Created by Colin David Munro on 16/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__SshAuth__
-#define __minissh__SshAuth__
+#pragma once
 
 #include <stdlib.h>
 #include "Client.h"
+
+namespace minissh {
 
 // Server
 
 // Client
 
-namespace SshClient {
-    class AuthTask;
+namespace Client {
+    class Authenticator;
+    
+    namespace Internal {
 
-    class Authenticator : public sshObject
+        struct AuthTask
+        {
+            Core::Client *_client;
+            std::string _name;
+            Core::Client::Service *_service;
+            Authenticator *authenticator;
+        };
+
+    }
+
+    class Authenticator
     {
     public:
         class Replier
         {
         public:
-            Replier(AuthTask *task);
+            Replier(Internal::AuthTask& task);
             
-            sshString* Name(void);
-            sshClient::Service* Service(void);
-            void SendPassword(sshString *username, sshString *password, sshString *newPassword = NULL);
+            std::string Name(void);
+            Core::Client::Service& Service(void);
+            void SendPassword(const std::string& username, const std::string& password, const std::optional<std::string>& newPassword = std::nullopt);
             // TODO: public key
             
         private:
-            AuthTask *_task;
+            Internal::AuthTask &_task;
         };
         
-        virtual void Banner(Replier *replier, sshString *message, sshString *languageTag) = 0;
-        virtual void Query(Replier *replier, sshNameList *acceptedModes, bool partiallyAccepted) = 0;
-        virtual void NeedChangePassword(Replier *replier, sshString *prompt, sshString *languageTag) = 0;
+        virtual void Banner(Replier *replier, const std::string& message, const std::string& languageTag) = 0;
+        virtual void Query(Replier *replier, const std::optional<std::vector<std::string>>& acceptedModes, bool partiallyAccepted) = 0;
+        virtual void NeedChangePassword(Replier *replier, const std::string& prompt, const std::string& languageTag) = 0;
     };
     
-    class Auth : public sshClient::Service
+    class AuthService : public Core::Client::Service
     {
     public:
-        Auth(sshClient *owner, sshClient::Enabler *enabler);
-        
+        AuthService(Core::Client& owner, std::shared_ptr<Core::Client::Enabler> enabler);
+        ~AuthService();
+
         void Start(void);
         
-        void HandlePayload(sshBlob *data);
+        void HandlePayload(Types::Blob data);
         
-        void SetAuthenticator(Authenticator *authenticator);
+        void SetAuthenticator(Authenticator* authenticator);
         
-        sshClient::Enabler* AuthEnabler(void);
+        std::shared_ptr<Core::Client::Enabler> AuthEnabler(void);
         
-        // Internal
-        void Check(void);
-        
-    protected:
-        ~Auth();
-        
+        void Enqueue(Internal::AuthTask task);
+
     private:
         bool _running;
-        sshDictionary *_dictionary;
-        sshClient *_owner;
+        Core::Client &_owner;
         Authenticator *_authenticator;
+        std::vector<Internal::AuthTask> _activeTasks;
         
         void Next(void);
     };
 }
 
-#endif /* defined(__minissh__SshAuth__) */
+} // namespace minissh

@@ -3,28 +3,25 @@
 //  minissh
 //
 //  Created by Colin David Munro on 10/01/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef minissh_Maths_h
-#define minissh_Maths_h
+#pragma once
 
-#include <stdio.h>
-#include <memory.h>
+#include <cstdio>
+#include <memory>
+#include "BaseTypes.h"
 
-typedef unsigned char Byte;
-typedef unsigned short UInt16;
-typedef unsigned int UInt32;
-typedef unsigned long long UInt64;
+namespace minissh::Types {
+class Blob;
+}
 
-#ifdef __cplusplus
-
-class sshBlob;
+namespace minissh::Maths {
 
 class RandomSource
 {
 public:
-    virtual ~RandomSource(){}
+    virtual ~RandomSource() = default;
     virtual UInt32 Random(void) = 0;
 };
 
@@ -51,11 +48,11 @@ public:
     BigNumber(const BigNumber &original);
     BigNumber(const void *bytes, UInt32 count, bool checkSign = true);
     BigNumber(const UInt32 *data, UInt32 count, bool reverse = false);
-    BigNumber(UInt32 bits, RandomSource *source, int primeCertainty);
+    BigNumber(UInt32 bits, RandomSource &source, int primeCertainty);
     ~BigNumber();
     
-    sshBlob* Data(void);
-    void Print(FILE *file);
+    Types::Blob Data(void) const;
+    std::string ToString(void) const;
     
     // Special functions
 
@@ -69,7 +66,7 @@ public:
 
     bool IsProbablePrime(int certainty);
     int GetLowestSetBit(void);
-    int BitLength(void);
+    int BitLength(void) const;
     int AsInt(void);
     
     // A big pile of operators
@@ -256,6 +253,4 @@ public:
     }
 };
 
-#endif
-
-#endif /* defined(minissh_Maths_h) */
+} // namespace minissh::Maths

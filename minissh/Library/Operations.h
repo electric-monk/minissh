@@ -3,33 +3,34 @@
 //  minissh
 //
 //  Created by Colin David Munro on 7/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__Operations__
-#define __minissh__Operations__
+#pragma once
 
 #include "Encryption.h"
+
+namespace minissh::Algorithm {
 
 class OperationCBC : public Operation
 {
 public:
-    OperationCBC(Encryption *encryption, sshBlob *initialisationVector);
+    OperationCBC(Encryption& encryption, Types::Blob initialisationVector);
     
-    sshBlob* Encrypt(sshBlob *data);
-    sshBlob* Decrypt(sshBlob *data);
+    Types::Blob Encrypt(Types::Blob data);
+    Types::Blob Decrypt(Types::Blob data);
 };
 
 class OperationCTR : public Operation
 {
 public:
-    OperationCTR(Encryption *encryption, sshBlob *initialisationVector);
+    OperationCTR(Encryption& encryption, Types::Blob initialisationVector);
     
-    sshBlob* Encrypt(sshBlob *data);
-    sshBlob* Decrypt(sshBlob *data);
+    Types::Blob Encrypt(Types::Blob data);
+    Types::Blob Decrypt(Types::Blob data);
     
 private:
     void Step(void);
 };
 
-#endif /* defined(__minissh__Operations__) */
+} // namespace minissh::Algorithm

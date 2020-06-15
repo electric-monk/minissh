@@ -3,44 +3,42 @@
 //  minissh
 //
 //  Created by Colin David Munro on 3/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include "SSH_RSA.h"
 #include "Maths.h"
 #include "Hash.h"
 
-SSH_RSA::SSH_RSA(sshTransport *owner, TransportMode mode)
+namespace minissh::Algoriths {
+
+SSH_RSA::SSH_RSA(Transport::Transport& owner, Transport::Mode mode)
 {
-    
 }
 
-bool SSH_RSA::Confirm(sshString *hostKey)
+bool SSH_RSA::Confirm(Types::Blob hostKey)
 {
     // TODO: _owner->delegate->Confirm
     return true;
 }
 
-bool SSH_RSA::Verify(sshString *hostKey, sshString *signature, sshString *message)
+bool SSH_RSA::Verify(Types::Blob hostKey, Types::Blob signature, Types::Blob exchangeHash)
 {
-    sshReader hostKeyReader(hostKey);
-    sshString *tag = hostKeyReader.ReadString();
-    if (!tag->IsEqual("ssh-rsa"))
+    Types::Reader hostKeyReader(hostKey);
+    std::string tag = hostKeyReader.ReadString().AsString();
+    if (tag.compare("ssh-rsa") != 0)
         return false;
-    BigNumber e = hostKeyReader.ReadMPInt();
-    BigNumber n = hostKeyReader.ReadMPInt();
-    RSA::Key *key = new RSA::Key(n, e);
-    sshReader signatureReader(signature);
-    sshString *tag2 = signatureReader.ReadString();
-    if (!tag2->IsEqual("ssh-rsa"))
+    Maths::BigNumber e = hostKeyReader.ReadMPInt();
+    Maths::BigNumber n = hostKeyReader.ReadMPInt();
+    RSA::Key key(n, e);
+    
+    Types::Reader signatureReader(signature);
+    std::string tag2 = signatureReader.ReadString().AsString();
+    if (tag2.compare("ssh-rsa") != 0)
         return false;
-    sshString *signatureString = signatureReader.ReadString();
-    sshBlob *messageBlob = new sshBlob(message);
-    sshBlob *signatureBlob = new sshBlob(signatureString);
-    SHA1 hash;
-    bool result = RSA::SSA_PKCS1_V1_5::Verify(key, messageBlob, signatureBlob, &hash);
-    signatureBlob->Release();
-    messageBlob->Release();
-    key->Release();
-    return result;
+    Types::Blob signatureBlob = signatureReader.ReadString();
+    
+    return RSA::SSA_PKCS1_V1_5::Verify(key, exchangeHash, signatureBlob, Hash::SHA1());
 }
+
+} // namespace minissh::Algoriths

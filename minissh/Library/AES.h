@@ -3,28 +3,26 @@
 //  minissh
 //
 //  Created by Colin David Munro on 7/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__AES__
-#define __minissh__AES__
+#pragma once
 
 #include "Encryption.h"
+
+namespace minissh::Algorithm {
 
 class AES : public Encryption
 {
 public:
-    AES(sshBlob *key);
+    AES(Types::Blob key);
 
-    sshBlob* Encrypt(sshBlob *data);
-    sshBlob* Decrypt(sshBlob *data);
-    
-protected:
-    ~AES();
+    Types::Blob Encrypt(Types::Blob data);
+    Types::Blob Decrypt(Types::Blob data);
     
 private:
     int _rounds;
-    sshBlob *_expandedKey;
+    Types::Blob _expandedKey;
 };
 
-#endif /* defined(__minissh__AES__) */
+} // namespace minissh::Algorithm

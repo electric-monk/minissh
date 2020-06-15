@@ -3,7 +3,7 @@
 //  minissh
 //
 //  Created by Colin David Munro on 7/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include "Operations.h"
@@ -11,49 +11,43 @@
 // As per http://csrc.nist.gov/publications/nistpubs/800-38a/sp800-38a.pdf
 // NIST Special Publication 800-38A 2001 Edition
 
-OperationCBC::OperationCBC(Encryption *encryption, sshBlob *initialisationVector)
+namespace minissh::Algorithm {
+
+OperationCBC::OperationCBC(Encryption& encryption, Types::Blob initialisationVector)
 :Operation(encryption, initialisationVector)
 {
 }
 
-sshBlob* OperationCBC::Encrypt(sshBlob *data)
+Types::Blob OperationCBC::Encrypt(Types::Blob data)
 {
-    sshBlob *combined = data->XorWith(_currentVector);
-    sshBlob *result = _encryption->Encrypt(combined);
+    Types::Blob combined = data.XorWith(_currentVector);
+    Types::Blob result = _encryption.Encrypt(combined);
     SetVector(result);
     return result;
 }
 
-sshBlob* OperationCBC::Decrypt(sshBlob *data)
+Types::Blob OperationCBC::Decrypt(Types::Blob data)
 {
-    sshBlob *decrypted = _encryption->Decrypt(data);
-    sshBlob *result = decrypted->XorWith(_currentVector);
+    Types::Blob decrypted = _encryption.Decrypt(data);
+    Types::Blob result = decrypted.XorWith(_currentVector);
     SetVector(data);
     return result;
 }
 
-static sshBlob* Copy(sshBlob *blob)
-{
-    sshBlob *result = new sshBlob();
-    result->Append(blob->Value(), blob->Length());
-    result->Autorelease();
-    return result;
-}
-
-OperationCTR::OperationCTR(Encryption *encryption, sshBlob *initialisationVector)
-:Operation(encryption, Copy(initialisationVector))
+OperationCTR::OperationCTR(Encryption& encryption, Types::Blob initialisationVector)
+:Operation(encryption, initialisationVector.Copy())
 {
 }
 
-sshBlob* OperationCTR::Encrypt(sshBlob *data)
+Types::Blob OperationCTR::Encrypt(Types::Blob data)
 {
-    sshBlob *encrypted = _encryption->Encrypt(_currentVector);
-    sshBlob *result = encrypted->XorWith(data);
+    Types::Blob encrypted = _encryption.Encrypt(_currentVector);
+    Types::Blob result = encrypted.XorWith(data);
     Step();
     return result;
 }
 
-sshBlob* OperationCTR::Decrypt(sshBlob *data)
+Types::Blob OperationCTR::Decrypt(Types::Blob data)
 {
     return Encrypt(data);
 }
@@ -61,7 +55,9 @@ sshBlob* OperationCTR::Decrypt(sshBlob *data)
 void OperationCTR::Step(void)
 {
     // HACK: modify the blob
-    int j = _currentVector->Length();
-    Byte *values = (Byte*)_currentVector->Value();
+    int j = _currentVector.Length();
+    Byte *values = (Byte*)_currentVector.Value();
     while (--j >= 0 && ++values[j] == 0);
 }
+
+} // namespace minissh::Algorithm

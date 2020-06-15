@@ -3,48 +3,50 @@
 //  minissh
 //
 //  Created by Colin David Munro on 9/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__Hash__
-#define __minissh__Hash__
+#pragma once
 
+#include <optional>
 #include "Types.h"
 
-class HashType
+namespace minissh::Hash {
+
+class Type
 {
 public:
     class Token
     {
     public:
         virtual void Update(const Byte *data, UInt32 length) = 0;
-        virtual sshBlob* End(void) = 0;
+        virtual std::optional<Types::Blob> End(void) = 0;
 
-        void Update(sshBlob *blob)
+        void Update(Types::Blob blob)
         {
-            Update(blob->Value(), blob->Length());
+            Update(blob.Value(), blob.Length());
         }
 
     protected:
-        ~Token();
+        ~Token() = default;
     };
     
-    virtual sshBlob* EMSA_PKCS1_V1_5_Prefix(void) = 0;
-    virtual Token* Start(void) = 0;
+    virtual Types::Blob EMSA_PKCS1_V1_5_Prefix(void) const = 0;
+    virtual std::shared_ptr<Token> Start(void) const = 0;
 
-    sshBlob* Compute(sshBlob *data)
+    std::optional<Types::Blob> Compute(Types::Blob data) const
     {
-        Token *token = Start();
+        std::shared_ptr<Token> token = Start();
         token->Update(data);
         return token->End();
     }
 };
 
-class SHA1 : public HashType
+class SHA1 : public Type
 {
 public:
-    sshBlob* EMSA_PKCS1_V1_5_Prefix(void);
-    Token* Start(void);
+    Types::Blob EMSA_PKCS1_V1_5_Prefix(void) const override;
+    std::shared_ptr<Token> Start(void) const override;
 };
 
-#endif /* defined(__minissh__Hash__) */
+} // namespace minissh::Hash

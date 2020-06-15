@@ -3,55 +3,46 @@
 //  minissh
 //
 //  Created by Colin David Munro on 20/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include <stdio.h>
 #include "Session.h"
 
-sshSession::sshSession(sshConnection *owner)
-:sshConnection::sshChannel(owner)
+namespace minissh::Core {
+
+Session::Session(Connection& owner)
+:Connection::Channel(owner)
 {
     _shell = false;
 }
 
-sshBlob* sshSession::OpenInfo(sshString **nameOut, UInt32 *packetSize, UInt32 *windowSize)
+std::optional<Types::Blob> Session::OpenInfo(std::string &nameOut, UInt32 &packetSize, UInt32 &windowSize)
 {
-    *nameOut = new sshString();
-    (*nameOut)->AppendFormat("session");
-    (*nameOut)->Autorelease();
-    return NULL;
+    nameOut = "session";
+    return {};
 }
 
-void sshSession::Opened(sshBlob *data)
+void Session::Opened(Types::Blob data)
 {
-    sshString *request = new sshString();
-    request->AppendFormat("pty-req");
-    sshBlob *parameters = new sshBlob();
-    sshWriter writer(parameters);
-    sshString *terminalType = new sshString();
-    terminalType->AppendFormat("vt100");
-    writer.Write(terminalType);
-    terminalType->Release();
+    Types::Blob parameters;
+    Types::Writer writer(parameters);
+    writer.WriteString("vt100");
     writer.Write(UInt32(80));
     writer.Write(UInt32(24));
     writer.Write(UInt32(640));
     writer.Write(UInt32(480));
-    sshString *terminalModes = new sshString();
-    terminalModes->AppendFormat("%c", 0);
-    writer.Write(terminalModes);
-    terminalModes->Release();
-    Request(request, true, parameters);
-    request->Release();
-    parameters->Release();
+    char terminalModes[] = {0};
+    writer.WriteString(std::string(terminalModes, sizeof(terminalModes)));
+    Request("pty-req", true, parameters);
 }
 
-void sshSession::OpenFailed(UInt32 reason, sshString *message, sshString *languageTag)
+void Session::OpenFailed(UInt32 reason, const std::string& message, const std::string& languageTag)
 {
-    printf("Failed to create session: %i: %s\n", reason, message->Value());
+    printf("Failed to create session: %i: %s\n", reason, message.c_str());
 }
 
-void sshSession::ReceivedRequestResponse(bool success)
+void Session::ReceivedRequestResponse(bool success)
 {
     if (!success) {
         printf("Failed to open TTY\n");
@@ -59,36 +50,32 @@ void sshSession::ReceivedRequestResponse(bool success)
     }
     if (!_shell) {
         _shell = true;
-        sshString *request = new sshString();
-        request->AppendFormat("shell");
-        Request(request, false, NULL);
-        request->Release();
+        Request("shell", false, std::nullopt);
     }
 }
 
-void sshSession::ReceivedClose(void)
+void Session::ReceivedClose(void)
 {
     printf("Session closed\n");
 }
 
-void sshSession::ReceivedData(sshBlob *data)
+void Session::ReceivedData(Types::Blob data)
 {
-    for (int i = 0; i < data->Length(); i++)
-        printf("%c", data->Value()[i]);
+    for (int i = 0; i < data.Length(); i++)
+        printf("%c", data.Value()[i]);
     fflush(stdout);
 }
 
-void sshSession::ReceivedExtendedData(UInt32 type, sshBlob *data)
+void Session::ReceivedExtendedData(UInt32 type, Types::Blob data)
 {
-    for (int i = 0; i < data->Length(); i++)
-        printf("%c", data->Value()[i]);
+    for (int i = 0; i < data.Length(); i++)
+        printf("%c", data.Value()[i]);
     fflush(stdout);
 }
 
-void sshSession::Send(const char *keystrokes, UInt32 length)
+void Session::Send(const char *keystrokes, UInt32 length)
 {
-    sshBlob *blob = new sshBlob();
-    blob->Append((Byte*)keystrokes, length);
-    sshChannel::Send(blob);
-    blob->Release();
+    Channel::Send(Types::Blob((Byte*)keystrokes, length));
 }
+
+} // namespace minissh::Core

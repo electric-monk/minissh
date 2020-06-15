@@ -3,43 +3,43 @@
 //  minissh
 //
 //  Created by Colin David Munro on 7/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef minissh_Encryption_h
-#define minissh_Encryption_h
+#pragma once
 
+#include <memory>
 #include "Types.h"
 
-class Encryption : public sshObject
+namespace minissh::Algorithm {
+
+class Encryption
 {
 public:
-    Encryption(sshBlob *key);
+    Encryption(Types::Blob key);
     
-    virtual sshBlob* Encrypt(sshBlob *data) = 0;
-    virtual sshBlob* Decrypt(sshBlob *data) = 0;
+    virtual Types::Blob Encrypt(Types::Blob data) = 0;
+    virtual Types::Blob Decrypt(Types::Blob data) = 0;
     
 protected:
-    ~Encryption();
     
-    sshBlob *_key;
+    Types::Blob _key;
 };
 
-class Operation : public sshObject
+class Operation
 {
 public:
-    Operation(Encryption *encryption, sshBlob *initialisationVector);
+    Operation(Encryption& encryption, Types::Blob initialisationVector);
     
-    virtual sshBlob* Encrypt(sshBlob *data) = 0;
-    virtual sshBlob* Decrypt(sshBlob *data) = 0;
+    virtual Types::Blob Encrypt(Types::Blob data) = 0;
+    virtual Types::Blob Decrypt(Types::Blob data) = 0;
     
 protected:
-    ~Operation();
     
-    Encryption *_encryption;
-    sshBlob *_currentVector;
+    Encryption& _encryption;
+    Types::Blob _currentVector;
     
-    void SetVector(sshBlob *vector);
+    void SetVector(Types::Blob vector);
 };
 
-#endif
+} // namespace minissh::Algorithm

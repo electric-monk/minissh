@@ -3,7 +3,7 @@
 //  minissh
 //
 //  Created by Colin David Munro on 16/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include "SshAuth.h"
@@ -11,223 +11,163 @@
 #include <stdio.h>
 #include <memory.h>
 
-namespace SshClient {
-    const Byte messages[] = {SSH_MSG_USERAUTH_BANNER, SSH_MSG_USERAUTH_FAILURE, SSH_MSG_USERAUTH_SUCCESS};
+namespace minissh {
 
-    class AuthTask : public sshObject
-    {
-    public:
-        AuthTask(sshClient *client, const char *serviceName, sshClient::Service *service, Authenticator *auth)
-        {
-            this->client = client;
-            name = new sshString();
-            name->AppendFormat("%s", serviceName);
-            this->service = service;
-            this->service->AddRef();
-            authenticator = auth;
-            authenticator->AddRef();
-        }
-        
-        ~AuthTask()
-        {
-            service->Release();
-            name->Release();
-            authenticator->Release();
-        }
-        
-        sshString *name;
-        sshClient *client;
-        sshClient::Service *service;
-        Authenticator *authenticator;
-    };
-    
-    namespace Internal {
-        class Enabler : public sshClient::Enabler
+namespace Client {
+    const Byte messages[] = {USERAUTH_BANNER, USERAUTH_FAILURE, USERAUTH_SUCCESS};
+
+    namespace {
+        class Enabler : public Core::Client::Enabler
         {
         public:
-            Enabler(Auth *owner, sshDictionary *dictionary, sshClient *client, Authenticator *auth)
+            Enabler(AuthService& owner, Core::Client& client, Authenticator *auth)
+            :_owner(owner), _client(client), _auth(auth)
             {
-                _owner = owner;
-                _dictionary = dictionary;
-                _client = client;
-                _auth = auth;
             }
             
-            void Request(const char *name, sshClient::Service *service)
+            void Request(const std::string& name, Core::Client::Service* service) override
             {
-                AuthTask *task = new AuthTask(_client, name, service, _auth);
-                _dictionary->Set(task->name, task);
-                task->Release();
-                _owner->Check();
+                _owner.Enqueue({&_client, name, service, _auth});
             }
             
-            void HandlePayload(sshBlob *data)
+            void HandlePayload(Types::Blob data) override
             {
                 // We don't use this as a message handler
             }
             
         private:
-            Auth *_owner;
-            sshDictionary *_dictionary;
-            sshClient *_client;
+            AuthService &_owner;
+            Core::Client &_client;
             Authenticator *_auth;
         };
     }
 
-    Authenticator::Replier::Replier(AuthTask *task)
+    Authenticator::Replier::Replier(Internal::AuthTask& task)
+    :_task(task)
     {
-        _task = task;
     }
     
-    sshString* Authenticator::Replier::Name(void)
+    std::string Authenticator::Replier::Name(void)
     {
-        return _task->name;
+        return _task._name;
     }
     
-    sshClient::Service* Authenticator::Replier::Service(void)
+    Core::Client::Service& Client::Authenticator::Replier::Service(void)
     {
-        return _task->service;
+        return *_task._service;
     }
     
-    void Authenticator::Replier::SendPassword(sshString *username, sshString *password, sshString *newPassword)
+    void Authenticator::Replier::SendPassword(const std::string& username, const std::string& password, const std::optional<std::string>& newPassword)
     {
-        sshBlob *message = new sshBlob();
-        sshWriter writer(message);
-        writer.Write(Byte(SSH_MSG_USERAUTH_REQUEST));
-        writer.Write(username);
-        writer.Write(Name());
-        sshString *pwd = new sshString();
-        pwd->AppendFormat("password");
-        writer.Write(pwd);
-        pwd->Release();
-        bool hasNewPassword = newPassword != NULL;
-        writer.Write(bool(hasNewPassword));
-        writer.Write(password);
-        if (hasNewPassword)
-            writer.Write(newPassword);
-        _task->client->Send(message);
-        message->Release();
+        Types::Blob message;
+        Types::Writer writer(message);
+        writer.Write(Byte(USERAUTH_REQUEST));
+        writer.WriteString(username);
+        writer.WriteString(Name());
+        writer.WriteString("password");
+        writer.Write(bool(newPassword));
+        writer.WriteString(password);
+        if (newPassword)
+            writer.WriteString(*newPassword);
+        _task._client->Send(message);
     }
     
-    Auth::Auth(sshClient *owner, sshClient::Enabler *enabler)
+    AuthService::AuthService(Core::Client& owner, std::shared_ptr<Core::Client::Enabler> enabler)
+    :_running(false), _owner(owner), _authenticator(nullptr)
     {
-        _running = false;
-        _dictionary = new sshDictionary();
         enabler->Request("ssh-userauth", this);
-        _owner = owner;
-        _owner->RegisterForPackets(this, messages, sizeof(messages) / sizeof(messages[0]));
-        _authenticator = NULL;
+        _owner.RegisterForPackets(this, messages, sizeof(messages) / sizeof(messages[0]));
     }
     
-    Auth::~Auth()
+    AuthService::~AuthService()
     {
-        if (_authenticator)
-            _authenticator->Release();
-        _owner->UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
-        _dictionary->Release();
+        _owner.UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
     }
 
-    void Auth::SetAuthenticator(Authenticator *authenticator)
+    void AuthService::SetAuthenticator(Authenticator *authenticator)
     {
-        if (_authenticator)
-            _authenticator->Release();
         _authenticator = authenticator;
-        if (_authenticator)
-            _authenticator->AddRef();
     }
 
-    void Auth::Start(void)
+    void AuthService::Start(void)
     {
         if (!_running) {
             _running = true;
-            if (_dictionary->AllKeys()->Count() != 0)
+            if (_activeTasks.size() != 0)
                 Next();
         }
     }
 
-    void Auth::Check(void)
+    void AuthService::Enqueue(Internal::AuthTask task)
     {
+        _activeTasks.push_back(task);
         if (!_running)
             return;
-        if (_dictionary->AllKeys()->Count() == 1)
+        if (_activeTasks.size() == 1)
             Next();
     }
     
-    static AuthTask* CurrentTask(sshDictionary *dictionary)
+    void AuthService::Next(void)
     {
-        sshString *name = dictionary->AllKeys()->ItemAt(0);
-        return (AuthTask*)dictionary->ObjectFor(name);
-    }
-    
-    static void RemoveCurrentTask(sshDictionary *dictionary)
-    {
-        sshString *name = dictionary->AllKeys()->ItemAt(0);
-        dictionary->Set(name, NULL);
-    }
-    
-    void Auth::Next(void)
-    {
-        if (_dictionary->AllKeys()->Count() == 0)
+        if (_activeTasks.size() == 0)
             return;
         // Start up!
-        AuthTask *task = CurrentTask(_dictionary);
+        Internal::AuthTask &task = _activeTasks.front();
         Authenticator::Replier replier(task);
-        task->authenticator->Query(&replier, NULL, false);
+        task.authenticator->Query(&replier, std::nullopt, false);
 
-        char *temp = new char[_dictionary->AllKeys()->ItemAt(0)->Length() + 1];
-        memcpy(temp, _dictionary->AllKeys()->ItemAt(0)->Value(), _dictionary->AllKeys()->ItemAt(0)->Length());
-        temp[_dictionary->AllKeys()->ItemAt(0)->Length()] = 0;
-        DEBUG_LOG_STATE(("Requesting auth service: %s\n", temp));
-        delete[] temp;
+        DEBUG_LOG_STATE(("Requesting auth service: %s\n", task._name.c_str()));
     }
 
-    void Auth::HandlePayload(sshBlob *data)
+    void AuthService::HandlePayload(Types::Blob data)
     {
-        sshReader reader(data);
+        Types::Reader reader(data);
         switch (reader.ReadByte()) {
-            case SSH_MSG_USERAUTH_SUCCESS:
+            case USERAUTH_SUCCESS:
             {
-                AuthTask *task = CurrentTask(_dictionary);
-                task->service->Start();
+                Internal::AuthTask &task = _activeTasks.front();
+                task._service->Start();
                 DEBUG_LOG_STATE(("Service accepted\n"));
-                RemoveCurrentTask(_dictionary);
+                _activeTasks.erase(_activeTasks.begin());
                 Next();
             }
                 break;
-            case SSH_MSG_USERAUTH_PASSWD_CHANGEREQ:
+            case USERAUTH_PASSWD_CHANGEREQ:
             {
-                sshString *message = reader.ReadString();
-                sshString *languageTag = reader.ReadString();
-                AuthTask *task = CurrentTask(_dictionary);
+                Types::Blob message = reader.ReadString();
+                Types::Blob languageTag = reader.ReadString();
+                Internal::AuthTask &task = _activeTasks.front();
                 Authenticator::Replier replier(task);
-                task->authenticator->NeedChangePassword(&replier, message, languageTag);
+                task.authenticator->NeedChangePassword(&replier, message.AsString(), languageTag.AsString());
             }
                 break;
-            case SSH_MSG_USERAUTH_FAILURE:
+            case USERAUTH_FAILURE:
             {
-                sshNameList *acceptedModes = reader.ReadNameList();
+                std::vector<std::string> acceptedModes = reader.ReadNameList();
                 bool partialSuccess = reader.ReadBoolean();
-                AuthTask *task = CurrentTask(_dictionary);
+                Internal::AuthTask &task = _activeTasks.front();
                 Authenticator::Replier replier(task);
-                task->authenticator->Query(&replier, acceptedModes, partialSuccess);
+                task.authenticator->Query(&replier, acceptedModes, partialSuccess);
             }
                 break;
-            case SSH_MSG_USERAUTH_BANNER:
+            case USERAUTH_BANNER:
             {
-                sshString *message = reader.ReadString();
-                sshString *languageTag = reader.ReadString();
-                AuthTask *task = CurrentTask(_dictionary);
+                Types::Blob message = reader.ReadString();
+                Types::Blob languageTag = reader.ReadString();
+                Internal::AuthTask &task = _activeTasks.front();
                 Authenticator::Replier replier(task);
-                task->authenticator->Banner(&replier, message, languageTag);
+                task.authenticator->Banner(&replier, message.AsString(), languageTag.AsString());
             }
                 break;
         }
     }
 
-    sshClient::Enabler* Auth::AuthEnabler(void)
+    std::shared_ptr<Core::Client::Enabler> AuthService::AuthEnabler(void)
     {
-        Internal::Enabler *result = new Internal::Enabler(this, _dictionary, _owner, _authenticator);
-        result->Autorelease();
-        return result;
+        if (!_authenticator)
+            throw new std::runtime_error("Authenticator not set");
+        return std::make_shared<Enabler>(*this, _owner, _authenticator);
     }
 }
+
+} // namespace minissh

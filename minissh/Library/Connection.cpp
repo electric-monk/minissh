@@ -3,7 +3,7 @@
 //  minissh
 //
 //  Created by Colin David Munro on 18/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include <stdlib.h>
@@ -11,299 +11,214 @@
 #include "Connection.h"
 #include "SshNumbers.h"
 
-namespace sshConnection_Internal {
-    class Pending
-    {
-    public:
-        Pending(Pending **start, Pending **end)
-        {
-            _start = start;
-            _end = end;
-            _next = NULL;
-            _previous = *_end;
-            *_end = this;
-            if (_previous)
-                _previous->_next = this;
-            else
-                *_start = this;
-        }
-        
-        virtual ~Pending()
-        {
-            if (_next)
-                _next->_previous = _previous;
-            if (_previous)
-                _previous->_next = _next;
-            if (*_start == this)
-                *_start = _next;
-            if (*_end == this)
-                *_end = _previous;
-        }
-        
-        virtual UInt32 Send(sshTransport *sender, UInt32 remoteChannel, UInt32 maximum) = 0;
-        virtual bool Empty(void) = 0;
-        virtual bool IgnoreWindow(void) = 0;
-        
-    private:
-        Pending **_start, **_end;
-        Pending *_previous, *_next;
-    };
+namespace minissh::Core {
 
-    class PendingData : public Pending
-    {
-    public:
-        PendingData(Pending **start, Pending **end, sshBlob *data)
-        :Pending(start, end)
-        {
-            _data = data;
-            _data->AddRef();
-        }
-        
-        ~PendingData()
-        {
-            _data->Release();
-        }
-        
-        UInt32 Send(sshTransport *sender, UInt32 remoteChannel, UInt32 maximum)
-        {
-            if (maximum == 0)
-                return 0;
-            sshBlob *packet = new sshBlob();
-            sshWriter writer(packet);
-            writer.Write(Byte(SSH_MSG_CHANNEL_DATA));
-            writer.Write(remoteChannel);
-            UInt32 remaining = _data->Length();
-            if (maximum > remaining)
-                maximum = remaining;
-            writer.Write(maximum);  // Writing length - manually sending a string
-            packet->Append(_data->Value(), maximum);
-            sender->Send(packet);
-            packet->Release();
-            _data->Strip(0, maximum);
-            return maximum;
-        }
-        
-        bool Empty(void)
-        {
-            return _data->Length() == 0;
-        }
-        
-        bool IgnoreWindow(void)
-        {
-            return false;
-        }
-        
-    protected:
-        sshBlob *_data;
-    };
+Connection::Channel::Pending::Pending(Pending **start, Pending **end)
+{
+    _start = start;
+    _end = end;
+    _next = nullptr;
+    _previous = *_end;
+    *_end = this;
+    if (_previous)
+        _previous->_next = this;
+    else
+        *_start = this;
+}
 
-    class PendingExtendedData : public PendingData
-    {
-    public:
-        PendingExtendedData(Pending **start, Pending **end, UInt32 type, sshBlob *data)
-        :PendingData(start, end, data)
-        {
-            _type = type;
-        }
-        
-        UInt32 Send(sshTransport *sender, UInt32 remoteChannel, UInt32 maximum)
-        {
-            if (maximum == 0)
-                return 0;
-            sshBlob *packet = new sshBlob();
-            sshWriter writer(packet);
-            writer.Write(Byte(SSH_MSG_CHANNEL_EXTENDED_DATA));
-            writer.Write(remoteChannel);
-            writer.Write(_type);
-            UInt32 remaining = _data->Length();
-            if (maximum > remaining)
-                maximum = remaining;
-            writer.Write(maximum);  // Writing length - manually sending a string
-            packet->Append(_data->Value(), maximum);
-            sender->Send(packet);
-            packet->Release();
-            _data->Strip(0, maximum);
-            return maximum;
-        }
-        
-    protected:
-        UInt32 _type;
-    };
-
-    class PendingEOF : public Pending
-    {
-    public:
-        PendingEOF(Pending **start, Pending **end)
-        :Pending(start, end)
-        {
-            _sent = false;
-        }
-        
-        UInt32 Send(sshTransport *sender, UInt32 remoteChannel, UInt32 maximum)
-        {
-            sshBlob *packet = new sshBlob();
-            sshWriter writer(packet);
-            writer.Write(Byte(SSH_MSG_CHANNEL_EOF));
-            writer.Write(remoteChannel);
-            sender->Send(packet);
-            packet->Release();
-            return 0;
-        }
-        
-        bool Empty(void)
-        {
-            return _sent;
-        }
-        
-        bool IgnoreWindow(void)
-        {
-            return true;
-        }
-
-    protected:
-        bool _sent;
-    };
+Connection::Channel::Pending::~Pending()
+{
+    if (_next)
+        _next->_previous = _previous;
+    if (_previous)
+        _previous->_next = _next;
+    if (*_start == this)
+        *_start = _next;
+    if (*_end == this)
+        *_end = _previous;
+}
     
-    class ChannelList
-    {
-    private:
-        sshConnection::sshChannel **_channels;
-        UInt32 _max;
-        
-    public:
-        ChannelList()
-        {
-            _max = 1;
-            _channels = new sshConnection::sshChannel*[_max];
-            for (UInt32 i = 0; i < _max; i++)
-                _channels[i] = NULL;
-        }
-        
-        ~ChannelList()
-        {
-            for (UInt32 i = 0; i < _max; i++) {
-                if (_channels[i] != NULL)
-                    _channels[i]->Release();
-            }
-            delete[] _channels;
-        }
-        
-        sshConnection::sshChannel* ChannelFor(UInt32 channel)
-        {
-            if (channel >= _max)
-                return NULL;
-            return _channels[channel];
-        }
-        
-        UInt32 Map(sshConnection::sshChannel *channel)
-        {
-            // Find a slot
-            for (UInt32 i = 0; i < _max; i++) {
-                if (_channels[i] == NULL) {
-                    _channels[i] = channel;
-                    channel->AddRef();
-                    return i;
-                }
-            }
-            // Make more slots
-            UInt32 newMax = _max * 2;
-            sshConnection::sshChannel **newChannels = new sshConnection::sshChannel*[newMax];
-            memcpy(newChannels, _channels, sizeof(sshConnection::sshChannel*) * _max);
-            for (UInt32 i = _max + 1; i < newMax; i++)
-                newChannels[i] = NULL;
-            delete[] _channels;
-            _channels = newChannels;
-            UInt32 result = _max;
-            _max = newMax;
-            // Pick the next
-            _channels[result] = channel;
-            channel->AddRef();
-            return result;
-        }
-        
-        void Unmap(UInt32 channel)
-        {
-            if (channel >= _max)
-                return;
-            if (_channels[channel] == NULL)
-                return;
-            _channels[channel]->Release();
-            _channels[channel] = NULL;
-        }
-        
-        UInt32 HighestChannel(void)
-        {
-            return _max;
-        }
-    };
-}
-
-sshConnection::sshChannel::sshChannel(sshConnection *owner)
+Connection::Channel::PendingData::PendingData(Pending **start, Pending **end, Types::Blob data)
+:Pending(start, end), _data(data)
 {
-    _owner = owner;
-    _sentEOF = false;
-    _sentClose = false;
-    _start = NULL;
-    _end = NULL;
 }
 
-void sshConnection::sshChannel::Send(sshBlob *data)
+UInt32 Connection::Channel::PendingData::Send(Transport::Transport& sender, UInt32 remoteChannel, UInt32 maximum)
+{
+    if (maximum == 0)
+        return 0;
+    Types::Blob packet;
+    Types::Writer writer(packet);
+    writer.Write(Byte(CHANNEL_DATA));
+    writer.Write(remoteChannel);
+    UInt32 remaining = _data.Length();
+    if (maximum > remaining)
+        maximum = remaining;
+    writer.Write(maximum);  // Writing length - manually sending a string
+    packet.Append(_data.Value(), maximum);
+    sender.Send(packet);
+    _data.Strip(0, maximum);
+    return maximum;
+}
+
+bool Connection::Channel::PendingData::Empty(void)
+{
+    return _data.Length() == 0;
+}
+
+bool Connection::Channel::PendingData::IgnoreWindow(void)
+{
+    return false;
+}
+
+Connection::Channel::PendingExtendedData::PendingExtendedData(Pending **start, Pending **end, UInt32 type, Types::Blob data)
+:PendingData(start, end, data)
+{
+    _type = type;
+}
+
+UInt32 Connection::Channel::PendingExtendedData::Send(Transport::Transport& sender, UInt32 remoteChannel, UInt32 maximum)
+{
+    if (maximum == 0)
+        return 0;
+    Types::Blob packet;
+    Types::Writer writer(packet);
+    writer.Write(Byte(CHANNEL_EXTENDED_DATA));
+    writer.Write(remoteChannel);
+    writer.Write(_type);
+    UInt32 remaining = _data.Length();
+    if (maximum > remaining)
+        maximum = remaining;
+    writer.Write(maximum);  // Writing length - manually sending a string
+    packet.Append(_data.Value(), maximum);
+    sender.Send(packet);
+    _data.Strip(0, maximum);
+    return maximum;
+}
+
+Connection::Channel::PendingEOF::PendingEOF(Pending **start, Pending **end)
+:Pending(start, end)
+{
+    _sent = false;
+}
+
+UInt32 Connection::Channel::PendingEOF::Send(Transport::Transport& sender, UInt32 remoteChannel, UInt32 maximum)
+{
+    Types::Blob packet;
+    Types::Writer writer(packet);
+    writer.Write(Byte(CHANNEL_EOF));
+    writer.Write(remoteChannel);
+    sender.Send(packet);
+    return 0;
+}
+
+bool Connection::Channel::PendingEOF::Empty(void)
+{
+    return _sent;
+}
+
+bool Connection::Channel::PendingEOF::IgnoreWindow(void)
+{
+    return true;
+}
+
+std::shared_ptr<Connection::Channel> Connection::ChannelList::ChannelFor(UInt32 channel)
+{
+    if (channel >= _channels.size())
+        return nullptr;
+    return _channels[channel];
+}
+
+UInt32 Connection::ChannelList::Map(std::shared_ptr<Connection::Channel> channel)
+{
+    // Find a slot
+    UInt32 i = 0;
+    for (std::shared_ptr<Connection::Channel>& entry : _channels) {
+        if (!entry) {
+            entry = channel;
+            return i;
+        }
+        i++;
+    }
+    // Make more slots
+    i = static_cast<UInt32>(_channels.size());
+    _channels.push_back(channel);
+    return i;
+}
+
+void Connection::ChannelList::Unmap(UInt32 channel)
+{
+    if (channel >= _channels.size())
+        return;
+    _channels[channel] = nullptr;
+}
+
+Connection::Channel::Channel(Connection& owner)
+:_owner(owner)
+{
+}
+
+Connection::Channel::~Channel()
+{
+    while (_start)
+        delete _start;
+}
+    
+void Connection::Channel::Send(Types::Blob data)
 {
     if (_sentEOF) {
         // error?
         return;
     }
-    new sshConnection_Internal::PendingData(&_start, &_end, data);
+    new PendingData(&_start, &_end, data);
     CheckSend();
 }
 
-void sshConnection::sshChannel::SendExtended(UInt32 type, sshBlob *data)
+void Connection::Channel::SendExtended(UInt32 type, Types::Blob data)
 {
     if (_sentEOF) {
         // error?
         return;
     }
-    new sshConnection_Internal::PendingExtendedData(&_start, &_end, type, data);
+    new PendingExtendedData(&_start, &_end, type, data);
     CheckSend();
 }
 
-void sshConnection::sshChannel::SendEOF(void)
+void Connection::Channel::SendEOF(void)
 {
     if (_sentEOF)
         return;
     // Append to the output queue, so all the info makes it first
-    new sshConnection_Internal::PendingEOF(&_start, &_end);
+    new PendingEOF(&_start, &_end);
     CheckSend();
 }
 
-void sshConnection::sshChannel::Request(sshString *request, bool wantResponse, sshBlob *extraData)
+void Connection::Channel::Request(const std::string& request, bool wantResponse, std::optional<Types::Blob> extraData)
 {
-    sshBlob *packet = new sshBlob();
-    sshWriter writer(packet);
-    writer.Write(Byte(SSH_MSG_CHANNEL_REQUEST));
+    Types::Blob packet;
+    Types::Writer writer(packet);
+    writer.Write(Byte(CHANNEL_REQUEST));
     writer.Write(_remoteChannel);
-    writer.Write(request);
+    writer.WriteString(request);
     writer.Write(wantResponse);
     if (extraData)
-        packet->Append(extraData->Value(), extraData->Length());
-    _owner->transport->Send(packet);
-    packet->Release();
+        packet.Append(extraData->Value(), extraData->Length());
+    _owner._transport.Send(packet);
 }
 
-void sshConnection::sshChannel::Close(void)
+void Connection::Channel::Close(void)
 {
     if (_sentClose)
         return;
     _sentClose = true;
-    sshBlob *packet = new sshBlob();
-    sshWriter writer(packet);
-    writer.Write(Byte(SSH_MSG_CHANNEL_CLOSE));
+    Types::Blob packet;
+    Types::Writer writer(packet);
+    writer.Write(Byte(CHANNEL_CLOSE));
     writer.Write(_remoteChannel);
-    _owner->transport->Send(packet);
-    packet->Release();
+    _owner._transport.Send(packet);
 }
 
-void sshConnection::sshChannel::HandleOpen(UInt32 otherChannel, UInt32 windowSize, UInt32 maxPacketSize, sshBlob *data)
+void Connection::Channel::HandleOpen(UInt32 otherChannel, UInt32 windowSize, UInt32 maxPacketSize, Types::Blob data)
 {
     _remoteChannel = otherChannel;
     _remoteWindowSize = windowSize;
@@ -311,262 +226,255 @@ void sshConnection::sshChannel::HandleOpen(UInt32 otherChannel, UInt32 windowSiz
     Opened(data);
 }
 
-void sshConnection::sshChannel::HandleData(sshBlob *data)
+void Connection::Channel::HandleData(Types::Blob data)
 {
-    _localWindowSize -= data->Length();
+    _localWindowSize -= data.Length();
     // TODO: check it's not gone negative
     CheckWindow();
     ReceivedData(data);
 }
 
-void sshConnection::sshChannel::HandleExtendedData(UInt32 type, sshBlob *data)
+void Connection::Channel::HandleExtendedData(UInt32 type, Types::Blob data)
 {
-    _localWindowSize -= data->Length();
+    _localWindowSize -= data.Length();
     // TODO: check it's not gone negative
     CheckWindow();
     ReceivedExtendedData(type, data);
 }
 
-void sshConnection::sshChannel::HandleWindowAdjust(UInt32 adjust)
+void Connection::Channel::HandleWindowAdjust(UInt32 adjust)
 {
     _remoteWindowSize += adjust;
     CheckSend();
 }
 
-void sshConnection::sshChannel::HandleClose(void)
+void Connection::Channel::HandleClose(void)
 {
     if (!_sentClose)
         Close();
     ReceivedClose();
 }
 
-void sshConnection::sshChannel::HandleRequest(sshString *request, bool reply, sshBlob *data)
+void Connection::Channel::HandleRequest(const std::string& request, bool reply, Types::Blob data)
 {
     bool result = ReceivedRequest(request, data);
     if (reply) {
-        sshBlob *packet = new sshBlob();
-        sshWriter writer(packet);
-        writer.Write(Byte(result ? SSH_MSG_CHANNEL_SUCCESS : SSH_MSG_CHANNEL_FAILURE));
+        Types::Blob packet;
+        Types::Writer writer(packet);
+        writer.Write(Byte(result ? CHANNEL_SUCCESS : CHANNEL_FAILURE));
         writer.Write(_remoteChannel);
-        _owner->transport->Send(packet);
-        packet->Release();
+        _owner._transport.Send(packet);
     }
 }
 
-void sshConnection::sshChannel::CheckSend(void)
+void Connection::Channel::CheckSend(void)
 {
     UInt32 maximum = _maxPacketSize;
     if (maximum > _remoteWindowSize)
         maximum = _remoteWindowSize;
     while ((_start != NULL) && (_remoteWindowSize || _start->IgnoreWindow())) {
-        UInt32 sent = _start->Send(_owner->transport, _remoteChannel, maximum);
+        UInt32 sent = _start->Send(_owner._transport, _remoteChannel, maximum);
         if (_start->Empty())
             delete _start;
         _remoteWindowSize -= sent;
     }
 }
 
-void sshConnection::sshChannel::CheckWindow(void)
+void Connection::Channel::CheckWindow(void)
 {
     if (_localWindowSize < 16384) {
-        sshBlob *packet = new sshBlob();
-        sshWriter writer(packet);
-        writer.Write(Byte(SSH_MSG_CHANNEL_WINDOW_ADJUST));
+        Types::Blob packet;
+        Types::Writer writer(packet);
+        writer.Write(Byte(CHANNEL_WINDOW_ADJUST));
         writer.Write(_remoteChannel);
         writer.Write(UInt32(65536));
-        _owner->transport->Send(packet);
-        packet->Release();
+        _owner._transport.Send(packet);
         _localWindowSize += 65536;
     }
 }
 
-static const Byte packets[] = {SSH_MSG_CHANNEL_OPEN, SSH_MSG_CHANNEL_OPEN_CONFIRMATION, SSH_MSG_CHANNEL_OPEN_FAILURE, SSH_MSG_CHANNEL_WINDOW_ADJUST, SSH_MSG_CHANNEL_DATA, SSH_MSG_CHANNEL_EXTENDED_DATA, SSH_MSG_CHANNEL_EOF, SSH_MSG_CHANNEL_CLOSE, SSH_MSG_CHANNEL_REQUEST, SSH_MSG_CHANNEL_SUCCESS, SSH_MSG_CHANNEL_FAILURE};
+static const Byte packets[] = {CHANNEL_OPEN, CHANNEL_OPEN_CONFIRMATION, CHANNEL_OPEN_FAILURE, CHANNEL_WINDOW_ADJUST, CHANNEL_DATA, CHANNEL_EXTENDED_DATA, CHANNEL_EOF, CHANNEL_CLOSE, CHANNEL_REQUEST, CHANNEL_SUCCESS, CHANNEL_FAILURE};
 
-sshConnection::sshConnection(sshClient *owner, sshClient::Enabler *enabler)
+Connection::Connection(Client& owner, std::shared_ptr<Client::Enabler> enabler)
+:_transport(owner), _running(false)
 {
-    transport = owner;
-    transport->RegisterForPackets(this, packets, sizeof(packets) / sizeof(packets[0]));
-    _running = false;
+    _transport.RegisterForPackets(this, packets, sizeof(packets) / sizeof(packets[0]));
     enabler->Request("ssh-connection", this);
-    _channels = new sshConnection_Internal::ChannelList();
 }
 
-sshConnection::~sshConnection()
+Connection::~Connection()
 {
-    transport->UnregisterForPackets(packets, sizeof(packets) / sizeof(packets[0]));
-    delete _channels;
+    _transport.UnregisterForPackets(packets, sizeof(packets) / sizeof(packets[0]));
 }
 
-void sshConnection::OpenChannel(sshChannel *channel)
+void Connection::OpenChannel(std::shared_ptr<Channel> channel)
 {
     // Get init info
-    sshBlob *data;
-    sshString *name = NULL;
+    std::string name;
     UInt32 packetSize = 1024;
     UInt32 windowSize = 65536;
-    data = channel->OpenInfo(&name, &packetSize, &windowSize);
-    if (!name)
+    std::optional<Types::Blob> data = channel->OpenInfo(name, packetSize, windowSize);
+    if (!name.length())
         return;
     
     // Get channel number
-    UInt32 channelIndex = _channels->Map(channel);
+    UInt32 channelIndex = _channels.Map(channel);
     if (!_running)
         return;
     
     // Send request
-    sshBlob *packet = new sshBlob();
-    sshWriter writer(packet);
-    writer.Write(Byte(SSH_MSG_CHANNEL_OPEN));
-    writer.Write(name);
+    Types::Blob packet;
+    Types::Writer writer(packet);
+    writer.Write(Byte(CHANNEL_OPEN));
+    writer.WriteString(name);
     writer.Write(channelIndex);
     writer.Write(windowSize);
     writer.Write(packetSize);
     if (data)
-        packet->Append(data->Value(), data->Length());
-    transport->Send(packet);
-    packet->Release();
+        packet.Append(data->Value(), data->Length());
+    _transport.Send(packet);
 }
 
-void sshConnection::Start(void)
+void Connection::Start(void)
 {
     _running = true;
-    for (UInt32 i = 0; i < _channels->HighestChannel(); i++) {
-        sshConnection::sshChannel *channel = _channels->ChannelFor(i);
-        if (channel == NULL)
-            continue;
-        
-        sshBlob *data;
-        sshString *name = NULL;
-        UInt32 packetSize = 1024;
-        UInt32 windowSize = 65536;
-        data = channel->OpenInfo(&name, &packetSize, &windowSize);
-        sshBlob *packet = new sshBlob();
-        sshWriter writer(packet);
-        writer.Write(Byte(SSH_MSG_CHANNEL_OPEN));
-        writer.Write(name);
-        writer.Write(i);
-        writer.Write(windowSize);
-        writer.Write(packetSize);
-        if (data)
-            packet->Append(data->Value(), data->Length());
-        transport->Send(packet);
-        packet->Release();
+    UInt32 i = 0;
+    for (std::shared_ptr<Connection::Channel>& channel : _channels) {
+        if (channel) {
+            std::string name;
+            UInt32 packetSize = 1024;
+            UInt32 windowSize = 65536;
+            std::optional<Types::Blob> data = channel->OpenInfo(name, packetSize, windowSize);
+            Types::Blob packet;
+            Types::Writer writer(packet);
+            writer.Write(Byte(CHANNEL_OPEN));
+            writer.WriteString(name);
+            writer.Write(i);
+            writer.Write(windowSize);
+            writer.Write(packetSize);
+            if (data)
+                packet.Append(data->Value(), data->Length());
+            _transport.Send(packet);
+        }
+        i++;
     }
 }
 
-void sshConnection::HandlePayload(sshBlob *packet)
+void Connection::HandlePayload(Types::Blob packet)
 {
-    sshReader reader(packet);
+    Types::Reader reader(packet);
     Byte message = reader.ReadByte();
     switch (message) {
-        case SSH_MSG_CHANNEL_OPEN:  // service provider
+        case CHANNEL_OPEN:  // service provider
             // TODO
             break;
-        case SSH_MSG_CHANNEL_OPEN_CONFIRMATION: // client of service
+        case CHANNEL_OPEN_CONFIRMATION: // client of service
         {
             UInt32 recipientChannel = reader.ReadUInt32();
             UInt32 senderChannel = reader.ReadUInt32();
             UInt32 windowSize = reader.ReadUInt32();
             UInt32 packetSize = reader.ReadUInt32();
-            sshBlob *data = reader.ReadBytes(reader.Remaining());
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            Types::Blob data = reader.ReadBytes(reader.Remaining());
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
                 channel->HandleOpen(senderChannel, windowSize, packetSize, data);
             else
                 /* panic? */;
         }
             break;
-        case SSH_MSG_CHANNEL_OPEN_FAILURE: // client of service
+        case CHANNEL_OPEN_FAILURE: // client of service
         {
             UInt32 recipientChannel = reader.ReadUInt32();
             UInt32 reason = reader.ReadUInt32();
-            sshString *message = reader.ReadString();
-            sshString *languageTag = reader.ReadString();
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            Types::Blob message = reader.ReadString();
+            Types::Blob languageTag = reader.ReadString();
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
-                channel->OpenFailed(reason, message, languageTag);
+                channel->OpenFailed(reason, message.AsString(), languageTag.AsString());
             else
                 /* panic? */;
         }
             break;
-        case SSH_MSG_CHANNEL_WINDOW_ADJUST:
+        case CHANNEL_WINDOW_ADJUST:
         {
             UInt32 recipientChannel = reader.ReadUInt32();
             UInt32 adjustment = reader.ReadUInt32();
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
                 channel->HandleWindowAdjust(adjustment);
             else
                 /* panic? */;
             break;
         }
-        case SSH_MSG_CHANNEL_DATA:
+        case CHANNEL_DATA:
         {
             UInt32 recipientChannel = reader.ReadUInt32();
-            sshString *data = reader.ReadString();
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            Types::Blob data = reader.ReadString();
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
-                channel->HandleData(data->AsBlob());
+                channel->HandleData(data);
             else
                 /* panic? */;
             break;
         }
-        case SSH_MSG_CHANNEL_EXTENDED_DATA:
+        case CHANNEL_EXTENDED_DATA:
         {
             UInt32 recipientChannel = reader.ReadUInt32();
             UInt32 type = reader.ReadUInt32();
-            sshString *data = reader.ReadString();
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            Types::Blob data = reader.ReadString();
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
-                channel->HandleExtendedData(type, data->AsBlob());
+                channel->HandleExtendedData(type, data);
             else
                 /* panic? */;
             break;
         }
-        case SSH_MSG_CHANNEL_EOF:
+        case CHANNEL_EOF:
         {
             UInt32 recipientChannel = reader.ReadUInt32();
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
                 channel->ReceivedEOF();
             else
                 /* panic? */;
             break;
         }
-        case SSH_MSG_CHANNEL_CLOSE:
+        case CHANNEL_CLOSE:
         {
             UInt32 recipientChannel = reader.ReadUInt32();
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel) {
                 channel->HandleClose();
-                _channels->Unmap(recipientChannel);
+                _channels.Unmap(recipientChannel);
             } else
                 /* panic? */;
             break;
         }
-        case SSH_MSG_CHANNEL_REQUEST:
+        case CHANNEL_REQUEST:
         {
             UInt32 recipientChannel = reader.ReadUInt32();
-            sshString *request = reader.ReadString();
+            Types::Blob request = reader.ReadString();
             bool reply = reader.ReadBoolean();
-            sshString *data = reader.ReadString();
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            Types::Blob data = reader.ReadString();
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
-                channel->HandleRequest(request, reply, data->AsBlob());
+                channel->HandleRequest(request.AsString(), reply, data);
             else
                 /* panic? */;
             break;
         }
-        case SSH_MSG_CHANNEL_SUCCESS:
-        case SSH_MSG_CHANNEL_FAILURE:
+        case CHANNEL_SUCCESS:
+        case CHANNEL_FAILURE:
         {
             UInt32 recipientChannel = reader.ReadUInt32();
-            sshChannel *channel = _channels->ChannelFor(recipientChannel);
+            std::shared_ptr<Channel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
-                channel->ReceivedRequestResponse(message == SSH_MSG_CHANNEL_SUCCESS);
+                channel->ReceivedRequestResponse(message == CHANNEL_SUCCESS);
             else
                 /* panic? */;
             break;
         }
     }
 }
+
+} // namespace minissh::Core

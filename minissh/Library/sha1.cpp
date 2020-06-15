@@ -1,3 +1,4 @@
+// Modified to a bit more C++ by Colin Munro, 13/6/2020
 /*
  SHA-1 in C
  By Steve Reid <sreid@sea-to-sky.net>
@@ -87,8 +88,6 @@
 
 #include "sha1.h"
 
-void SHA1_Transform(UInt32 state[5], const Byte buffer[64]);
-
 #define rol(value, bits) (((value) << (bits)) | ((value) >> (32 - (bits))))
 
 /* blk0() and blk() perform the initial expand. */
@@ -110,6 +109,7 @@ void SHA1_Transform(UInt32 state[5], const Byte buffer[64]);
 #define R3(v,w,x,y,z,i) z+=(((w|x)&y)|(w&x))+blk(i)+0x8F1BBCDC+rol(v,5);w=rol(w,30);
 #define R4(v,w,x,y,z,i) z+=(w^x^y)+blk(i)+0xCA62C1D6+rol(v,5);w=rol(w,30);
 
+namespace {
 
 #ifdef VERBOSE  /* SAK */
 void SHAPrintContext(SHA1_CTX *context, char *msg){
@@ -125,17 +125,17 @@ void SHAPrintContext(SHA1_CTX *context, char *msg){
 #endif /* VERBOSE */
 
 /* Hash a single 512-bit block. This is the core of the algorithm. */
-void SHA1_Transform(UInt32 state[5], const Byte buffer[64])
+void SHA1_Transform(minissh::UInt32 state[5], const minissh::Byte buffer[64])
 {
-    UInt32 a, b, c, d, e;
+    minissh::UInt32 a, b, c, d, e;
     typedef union {
-        Byte c[64];
-        UInt32 l[16];
+        minissh::Byte c[64];
+        minissh::UInt32 l[16];
     } CHAR64LONG16;
     CHAR64LONG16* block;
     
 #ifdef SHA1HANDSOFF
-    static Byte workspace[64];
+    static minissh::Byte workspace[64];
     block = (CHAR64LONG16*)workspace;
     memcpy(block, buffer, 64);
 #else
@@ -182,22 +182,23 @@ void SHA1_Transform(UInt32 state[5], const Byte buffer[64])
     a = b = c = d = e = 0;
 }
 
+} // namespace
 
 /* SHA1Init - Initialize new context */
-void SHA1_Init(SHA1_CTX* context)
+void SHA1_CTX::Init(void)
 {
     /* SHA1 initialization constants */
-    context->state[0] = 0x67452301;
-    context->state[1] = 0xEFCDAB89;
-    context->state[2] = 0x98BADCFE;
-    context->state[3] = 0x10325476;
-    context->state[4] = 0xC3D2E1F0;
-    context->count[0] = context->count[1] = 0;
+    this->state[0] = 0x67452301;
+    this->state[1] = 0xEFCDAB89;
+    this->state[2] = 0x98BADCFE;
+    this->state[3] = 0x10325476;
+    this->state[4] = 0xC3D2E1F0;
+    this->count[0] = this->count[1] = 0;
 }
 
 
 /* Run your data through this. */
-void SHA1_Update(SHA1_CTX* context, const Byte* data, const size_t len)
+void SHA1_CTX::Update(const minissh::Byte* data, const size_t len)
 {
     size_t i, j;
     
@@ -205,54 +206,54 @@ void SHA1_Update(SHA1_CTX* context, const Byte* data, const size_t len)
     SHAPrintContext(context, "before");
 #endif
     
-    j = (context->count[0] >> 3) & 63;
-    if ((context->count[0] += len << 3) < (len << 3)) context->count[1]++;
-    context->count[1] += (len >> 29);
+    j = (this->count[0] >> 3) & 63;
+    if ((this->count[0] += len << 3) < (len << 3)) this->count[1]++;
+    this->count[1] += (len >> 29);
     if ((j + len) > 63) {
-        memcpy(&context->buffer[j], data, (i = 64-j));
-        SHA1_Transform(context->state, context->buffer);
+        memcpy(&this->buffer[j], data, (i = 64-j));
+        SHA1_Transform(this->state, this->buffer);
         for ( ; i + 63 < len; i += 64) {
-            SHA1_Transform(context->state, data + i);
+            SHA1_Transform(this->state, data + i);
         }
         j = 0;
     }
     else i = 0;
-    memcpy(&context->buffer[j], &data[i], len - i);
+    memcpy(&this->buffer[j], &data[i], len - i);
     
 #ifdef VERBOSE
-    SHAPrintContext(context, "after ");
+    SHAPrintContext(this, "after ");
 #endif
 }
 
 
 /* Add padding and return the message digest. */
-void SHA1_Final(SHA1_CTX* context, Byte digest[SHA1_DIGEST_SIZE])
+void SHA1_CTX::Final(minissh::Byte digest[SHA1_DIGEST_SIZE])
 {
-    UInt32 i;
-    Byte  finalcount[8];
+    minissh::UInt32 i;
+    minissh::Byte  finalcount[8];
     
     for (i = 0; i < 8; i++) {
-        finalcount[i] = (unsigned char)((context->count[(i >= 4 ? 0 : 1)]
+        finalcount[i] = (unsigned char)((this->count[(i >= 4 ? 0 : 1)]
                                          >> ((3-(i & 3)) * 8) ) & 255);  /* Endian independent */
     }
-    SHA1_Update(context, (Byte *)"\200", 1);
-    while ((context->count[0] & 504) != 448) {
-        SHA1_Update(context, (Byte *)"\0", 1);
+    this->Update((minissh::Byte *)"\200", 1);
+    while ((this->count[0] & 504) != 448) {
+        this->Update((minissh::Byte *)"\0", 1);
     }
-    SHA1_Update(context, finalcount, 8);  /* Should cause a SHA1_Transform() */
+    this->Update(finalcount, 8);  /* Should cause a SHA1_Transform() */
     for (i = 0; i < SHA1_DIGEST_SIZE; i++) {
-        digest[i] = (Byte)
-        ((context->state[i>>2] >> ((3-(i & 3)) * 8) ) & 255);
+        digest[i] = (minissh::Byte)
+        ((this->state[i>>2] >> ((3-(i & 3)) * 8) ) & 255);
     }
     
     /* Wipe variables */
     i = 0;
-    memset(context->buffer, 0, 64);
-    memset(context->state, 0, 20);
-    memset(context->count, 0, 8);
+    memset(this->buffer, 0, 64);
+    memset(this->state, 0, 20);
+    memset(this->count, 0, 8);
     memset(finalcount, 0, 8);	/* SWR */
     
 #ifdef SHA1HANDSOFF  /* make SHA1Transform overwrite its own static vars */
-    SHA1_Transform(context->state, context->buffer);
+    SHA1_Transform(this->state, this->buffer);
 #endif
 }

@@ -3,74 +3,62 @@
 //  minissh
 //
 //  Created by Colin David Munro on 31/01/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__DiffieHellman__
-#define __minissh__DiffieHellman__
+#pragma once
 
 #include "Transport.h"
 
 class LargeNumber;
 
-class diffieHellman : public sshKeyExchanger
+namespace minissh::Algorithms::DiffieHellman {
+
+class Base : public Transport::KeyExchanger
 {
 public:
-    diffieHellman(sshTransport *owner, TransportMode mode);
+    Base(Transport::Transport& owner, Transport::Mode mode, Maths::BigNumber p, Maths::BigNumber g);
     
-    void Start(void);
+    void Start(void) override;
     
-    void HandlePayload(sshBlob *data);
-    
-    virtual BigNumber Prime(void) = 0;
-    virtual BigNumber Generator(void) = 0;
+    void HandlePayload(Types::Blob data) override;
     
 protected:
-    ~diffieHellman();
+    ~Base();
     
 private:
-    BigNumber _xy;
+    Maths::BigNumber _p, _g;    // Prime and Generator
+    
+    Maths::BigNumber _xy;
 
-    BigNumber _e, _f;
+    Maths::BigNumber _e, _f;
     
-    sshString *_hostKey;
+    Types::Blob _hostKey;
     
-    bool CheckRange(const BigNumber &number);
-    sshString* MakeHash(void);
+    bool CheckRange(const Maths::BigNumber &number);
+    Types::Blob MakeHash(void);
 };
 
-class dhGroup1 : public diffieHellman
+class Group1 : public Base
 {
 public:
-    class Factory : public sshConfiguration::FactoryTemplate<dhGroup1>
+    static constexpr char Name[] = "diffie-hellman-group1-sha1";
+    class Factory : public Transport::Configuration::Instantiatable<Group1, Transport::KeyExchanger>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "diffie-hellman-group1-sha1";
-        }
     };
     
-    dhGroup1(sshTransport *owner, TransportMode mode);
-    BigNumber Prime(void);
-    BigNumber Generator(void);
+    Group1(Transport::Transport& owner, Transport::Mode mode);
 };
 
-class dhGroup14 : public diffieHellman
+class Group14 : public Base
 {
 public:
-    class Factory : public sshConfiguration::FactoryTemplate<dhGroup14>
+    static constexpr char Name[] = "diffie-hellman-group14-sha1";
+    class Factory : public Transport::Configuration::Instantiatable<Group14, Transport::KeyExchanger>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "diffie-hellman-group14-sha1";
-        }
     };
 
-    dhGroup14(sshTransport *owner, TransportMode mode);
-    BigNumber Prime(void);
-    BigNumber Generator(void);
+    Group14(Transport::Transport& owner, Transport::Mode mode);
 };
 
-#endif /* defined(__minissh__DiffieHellman__) */
+} // namespace minissh::Algorithms::DiffieHellman

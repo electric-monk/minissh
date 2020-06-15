@@ -3,7 +3,7 @@
 //  minissh
 //
 //  Created by Colin David Munro on 18/01/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include <stdlib.h>
@@ -12,10 +12,7 @@
 #include "Maths.h"
 #include "Types.h"
 
-static int Max(int a, int b)
-{
-    return (a > b) ? a : b;
-}
+namespace minissh::Maths {
 
 BigNumber::BigNumber()
 {
@@ -86,14 +83,14 @@ BigNumber::BigNumber(const UInt32 *data, UInt32 count, bool reverse)
     Compact();
 }
 
-BigNumber::BigNumber(UInt32 bits, RandomSource *source, int primeCertainty)
+BigNumber::BigNumber(UInt32 bits, RandomSource &source, int primeCertainty)
 {
     _positive = true;
     _count = (bits + (sizeof(DigitType) * 8) - 1) / (8 * sizeof(DigitType));
     _digits = new DigitType[_count];
     while (true) {
         for (int i = 0; i < _count; i++)
-            _digits[i] = source->Random();
+            _digits[i] = source.Random();
         _digits[bits / sizeof(DigitType)] |= 1 << (bits % sizeof(DigitType));
         if (IsProbablePrime(primeCertainty)) {
             break;
@@ -271,7 +268,7 @@ BigNumber BigNumber::operator~()
 
 void BigNumber::Add(const BigNumber &other)
 {
-    UInt32 n = Max(_count, other._count);
+    UInt32 n = std::max(_count, other._count);
     Expand(n + 1);
     UInt64 k = 0; // Carry
     for (UInt32 j = 0; j < n; j++) {
@@ -285,7 +282,7 @@ void BigNumber::Add(const BigNumber &other)
 
 void BigNumber::Subtract(const BigNumber &other)
 {
-    UInt32 n = Max(_count, other._count);
+    UInt32 n = std::max(_count, other._count);
     Expand(n + 1);
     UInt64 k = 0; // Carry
     for (UInt32 j = 0; j < n; j++) {
@@ -540,7 +537,7 @@ int BigNumber::GetLowestSetBit(void)
     return -1;
 }
 
-int BigNumber::BitLength(void)
+int BigNumber::BitLength(void) const
 {
     // We should always have been compacted, so we can use that knowledge here
     DigitType lastDigit = _digits[_count - 1];
@@ -563,14 +560,14 @@ int BigNumber::AsInt(void)
         return -_digits[0];
 }
 
-sshBlob* BigNumber::Data(void)
+Types::Blob BigNumber::Data(void) const
 {
-    sshBlob *result = new sshBlob();
+    Types::Blob result;
     if (_positive) {
-        result->Append((Byte*)_digits, sizeof(DigitType) * _count);
+        result.Append((Byte*)_digits, sizeof(DigitType) * _count);
         if (_digits[_count - 1] & ((UInt64(1) << ((sizeof(DigitType) * 8) - 1)))) {
             Byte zero = 0;
-            result->Append(&zero, sizeof(zero));
+            result.Append(&zero, sizeof(zero));
         }
     } else {
         UInt32 carry = 1;
@@ -579,24 +576,24 @@ sshBlob* BigNumber::Data(void)
             UInt32 total = UInt32(value) + carry;
             value = Byte(total);
             carry = total >> 8;
-            result->Append(&value, 1);
+            result.Append(&value, 1);
         }
         if (carry) {
             // Since we're only adding 1, this can only be 1, which means "fill it up with bits" for Two's complement. If carry started as anything other than 1 we'd need to be slightly cleverer
             Byte v = 0xFF;
-            result->Append(&v, 1);
+            result.Append(&v, 1);
         }
     }
     // The caller wants MSB first
-    sshBlob *resultReversed = new sshBlob();
-    for (int i = result->Length(); i != 0; i--)
-        resultReversed->Append(result->Value() + i - 1, 1);
+    Types::Blob resultReversed;
+    for (int i = result.Length(); i != 0; i--)
+        resultReversed.Append(result.Value() + i - 1, 1);
     // Fix invalid padding
     int strip = 0;
-    int max = resultReversed->Length() - 1;
+    int max = resultReversed.Length() - 1;
     if (_positive) {
         while (strip < max) {
-            const Byte *current = resultReversed->Value();
+            const Byte *current = resultReversed.Value();
             if (current[strip] != 0)
                 break;
             if (current[strip + 1] & 0x80)
@@ -605,7 +602,7 @@ sshBlob* BigNumber::Data(void)
         }
     } else {
         while (strip < max) {
-            const Byte *current = resultReversed->Value();
+            const Byte *current = resultReversed.Value();
             if (current[strip] != 0xFF)
                 break;
             if (!(current[strip + 1] & 0x80))
@@ -613,27 +610,28 @@ sshBlob* BigNumber::Data(void)
             strip++;
         }
     }
-    resultReversed->Strip(0, strip);
+    resultReversed.Strip(0, strip);
     // Done
-    result->Release();
-    resultReversed->Autorelease();
     return resultReversed;
 }
 
-const char *_HEX = "0123456789ABCDEF";
-
-void BigNumber::Print(FILE *file)
+std::string BigNumber::ToString(void) const
 {
-    putc(_positive ? '+' : '-', file);
+    static const char *_HEX = "0123456789ABCDEF";
+    std::string result;
+    
+    result.append(_positive ? "+" : "-");
     for (int i = _count; i > 0; i--) {
         DigitType digit = _digits[i - 1];
         for (int j = sizeof(DigitType); j != 0; j--) {
             DigitType value = digit >> ((j - 1) * 8);
             UInt32 high = (value & 0xF0) >> 4;
             UInt32 low = value & 0x0F;
-            putc(_HEX[high], file);
-            putc(_HEX[low], file);
+            result.append(_HEX + high, 1);
+            result.append(_HEX + low, 1);
         }
     }
-    fprintf(file, "\n");
+    return result;
 }
+
+} // namespace minissh::Maths

@@ -3,15 +3,17 @@
 //  minissh
 //
 //  Created by Colin David Munro on 9/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__hmac__
-#define __minissh__hmac__
+#pragma once
 
-class HashType;
-class sshBlob;
+#include <memory>
+#include "Types.h"
+#include "Hash.h"
 
-sshBlob* HMAC(HashType *hash, sshBlob *key, sshBlob *text);
+namespace minissh::HMAC {
 
-#endif /* defined(__minissh__hmac__) */
+Types::Blob Calculate(const Hash::Type& hash, Types::Blob key, Types::Blob text);
+
+} // namespace minissh::HMAC

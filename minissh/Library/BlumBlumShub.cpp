@@ -3,14 +3,38 @@
 //  minissh
 //
 //  Created by Colin David Munro on 24/01/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#include <stdio.h>
+#include <cstdio>
 #include "BlumBlumShub.h"
 #include "Maths.h"
 
-BlumBlumShub::BlumBlumShub(int bits, RandomSource *source)
+namespace minissh::Random {
+
+namespace {
+    
+Maths::BigNumber GetPrime(int bits, Maths::RandomSource &source)
+{
+    while (true) {
+        Maths::BigNumber result = Maths::BigNumber(bits, source, 100);
+        if ((result % 4) == 3)
+            return result;
+    }
+}
+
+Maths::BigNumber GenerateN(int bits, Maths::RandomSource &source)
+{
+    Maths::BigNumber p = GetPrime(bits / 2, source);
+    Maths::BigNumber q = GetPrime(bits / 2, source);
+    while (p == q)
+        q = GetPrime(bits, source);
+    return p * q;
+}
+
+} // namespace
+
+BlumBlumShub::BlumBlumShub(int bits, RandomSource &source)
 {
     _n = GenerateN(bits, source);
     _state = NULL;
@@ -18,7 +42,7 @@ BlumBlumShub::BlumBlumShub(int bits, RandomSource *source)
 
 void BlumBlumShub::SetSeed(Byte *bytes, UInt32 length)
 {
-    BigNumber(bytes, length).Divide(_n, _state);
+    Maths::BigNumber(bytes, length).Divide(_n, _state);
 }
 
 UInt32 BlumBlumShub::Random(void)
@@ -30,21 +54,5 @@ UInt32 BlumBlumShub::Random(void)
     }
     return result;
 }
-
-BigNumber BlumBlumShub::GetPrime(int bits, RandomSource *source)
-{
-    while (true) {
-        BigNumber result = BigNumber(bits, source, 100);
-        if ((result % 4) == 3)
-            return result;
-    }
-}
-
-BigNumber BlumBlumShub::GenerateN(int bits, RandomSource *source)
-{
-    BigNumber p = GetPrime(bits / 2, source);
-    BigNumber q = GetPrime(bits / 2, source);
-    while (p == q)
-        q = GetPrime(bits, source);
-    return p * q;
-}
+    
+} // namespace minissh::Random

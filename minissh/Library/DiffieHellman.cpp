@@ -3,7 +3,7 @@
 //  minissh
 //
 //  Created by Colin David Munro on 31/01/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include "DiffieHellman.h"
@@ -12,127 +12,121 @@
 #include "RSA.h"
 #include "Hash.h"
 
-bool diffieHellman::CheckRange(const BigNumber &number)
+namespace minissh::Algorithms::DiffieHellman {
+
+namespace {
+    
+Hash::SHA1 hash;
+    
+} // namespace
+    
+bool Base::CheckRange(const Maths::BigNumber &number)
 {
-    return (number >= 1) && (number <= (Prime() - 1));
+    return (number >= 1) && (number <= (_p - 1));
 }
 
-diffieHellman::diffieHellman(sshTransport *owner, TransportMode mode)
-:sshKeyExchanger(owner, mode)
+Base::Base(Transport::Transport& owner, Transport::Mode mode, Maths::BigNumber p, Maths::BigNumber g)
+:KeyExchanger(owner, mode, hash), _p(p), _g(g)
 {
-    Byte message = (_mode == Server) ? SSH_MSG_KEXDH_INIT : SSH_MSG_KEXDH_REPLY;
-    _owner->RegisterForPackets(this, &message, 1);
+    Byte message = (_mode == Transport::Server) ? KEXDH_INIT : KEXDH_REPLY;
+    _owner.RegisterForPackets(this, &message, 1);
 }
 
-diffieHellman::~diffieHellman()
+Base::~Base()
 {
-    Byte message = (_mode == Server) ? SSH_MSG_KEXDH_INIT : SSH_MSG_KEXDH_REPLY;
-    _owner->UnregisterForPackets(&message, 1);
+    Byte message = (_mode == Transport::Server) ? KEXDH_INIT : KEXDH_REPLY;
+    _owner.UnregisterForPackets(&message, 1);
 }
 
-sshString* diffieHellman::MakeHash(void)
+Types::Blob Base::MakeHash(void)
 {
-    sshBlob *input = new sshBlob();
-    sshWriter writer(input);
-    sshTransport_Internal::TransportInfo *client, *server;
-    if (_mode == Client) {
-        client = &_owner->local;
-        server = &_owner->remote;
-    } else {
-        client = &_owner->remote;
-        server = &_owner->local;
-    }
-    writer.Write(client->version);
-    writer.Write(server->version);
-    writer.Write(client->kexPayload->AsString());
-    writer.Write(server->kexPayload->AsString());
-    writer.Write(_hostKey);
+    Types::Blob input;
+    Types::Writer writer(input);
+    bool isClient = _mode == Transport::Client;
+    const Transport::Internal::TransportInfo &client(isClient ? _owner.local : _owner.remote);
+    const Transport::Internal::TransportInfo &server(isClient ? _owner.remote : _owner.local);
+    writer.WriteString(client.version);
+    writer.WriteString(server.version);
+    writer.WriteString(client.kexPayload);
+    writer.WriteString(server.kexPayload);
+    writer.WriteString(_hostKey);
     writer.Write(_e);
     writer.Write(_f);
     writer.Write(key);
-    sshBlob *result = hash->Compute(input);
+    std::optional<Types::Blob> result = _hash.Compute(input);
+    if (!result)
+        throw new std::runtime_error("Failed to create hash");
 #ifdef DEBUG_KEX
     printf("Hash content:\n");
-    input->DebugDump();
+    input.DebugDump();
     printf("Hash output:\n");
     result->DebugDump();
 #endif
-    input->Release();
-    sshString *string = new sshString(result);
-    string->Autorelease();
-    return string;
+    return *result;
 }
 
-void diffieHellman::Start(void)
+void Base::Start(void)
 {
-    BigNumber p = Prime();
-    BigNumber g = Generator();
     do {
-        _xy = BigNumber(p.BitLength(), _owner->random, 0);
+        _xy = Maths::BigNumber(_p.BitLength(), _owner.random, 0);
     } while (!CheckRange(_xy));
     
-    BigNumber ef = g.PowerMod(_xy, p);
+    Maths::BigNumber ef = _g.PowerMod(_xy, _p);
     
     switch (_mode) {
-        case Client:
+        case Transport::Client:
             _e = ef;
         {
-            sshBlob *payload = new sshBlob();
-            sshWriter writer(payload);
-            writer.Write((Byte)SSH_MSG_KEXDH_INIT);
+            Types::Blob payload;
+            Types::Writer writer(payload);
+            writer.Write(KEXDH_INIT);
             writer.Write(_e);
-            _owner->Send(payload);
-            payload->Release();
+            _owner.Send(payload);
         }
             break;
-        case Server:
+        case Transport::Server:
             _f = ef;
             break;
     }
 }
 
-void diffieHellman::HandlePayload(sshBlob *data)
+void Base::HandlePayload(Types::Blob data)
 {
-    sshReader reader(data);
+    Types::Reader reader(data);
     
     switch (reader.ReadByte()) {
-        case SSH_MSG_KEXDH_INIT:
-            if (_mode != Server)
-                _owner->Panic(sshTransport::prInvalidMessage);
+        case KEXDH_INIT:
+            if (_mode != Transport::Server)
+                _owner.Panic(Transport::Transport::PanicReason::InvalidMessage);
             _e = reader.ReadMPInt();
             // Compute key
 //            if (!CheckRange(_e))
-//                _owner->Panic(sshTransport::prOutOfRange);
-            key = _e.PowerMod(_xy, Prime());
+//                _owner.Panic(Transport::Transport::PanicReason::OutOfRange);
+            key = _e.PowerMod(_xy, _p);
             // Reply
             
             break;
-        case SSH_MSG_KEXDH_REPLY:
-            if (_mode != Client)
-                _owner->Panic(sshTransport::prInvalidMessage);
+        case KEXDH_REPLY:
+            if (_mode != Transport::Client)
+                _owner.Panic(Transport::Transport::PanicReason::InvalidMessage);
             _hostKey = reader.ReadString();
-            _hostKey->AddRef();
             _f = reader.ReadMPInt();
-            sshString *_signature = reader.ReadString();
-            _signature->AddRef();
+            Types::Blob _signature = reader.ReadString();
             // Compute key
             if (!CheckRange(_f))
-                _owner->Panic(sshTransport::prOutOfRange);
-            key = _f.PowerMod(_xy, Prime());
+                _owner.Panic(Transport::Transport::PanicReason::OutOfRange);
+            key = _f.PowerMod(_xy, _p);
             // Calculate hash
             exchangeHash = MakeHash();
-            exchangeHash->AddRef();
-            if (_owner->sessionID == NULL) {
-                _owner->sessionID = exchangeHash;
-                _owner->sessionID->AddRef();
-            }
+            if (!_owner.sessionID)
+                _owner.sessionID = exchangeHash;
             // Check signature
-            if (!_owner->hostKeyAlgorithm->Confirm(_hostKey)) {
-                _owner->Panic(sshTransport::prBadHostKey);
+            if (!_owner.hostKeyAlgorithm->Confirm(_hostKey)) {
+                _owner.Panic(Transport::Transport::PanicReason::BadHostKey);
                 return;
             }
-            if (!_owner->hostKeyAlgorithm->Verify(_hostKey, _signature, exchangeHash)) {
-                _owner->Panic(sshTransport::prBadSignature);
+            if (!_owner.hostKeyAlgorithm->Verify(_hostKey, _signature, exchangeHash)) {
+                _owner.Panic(Transport::Transport::PanicReason::BadSignature);
                 return;
             }
             // Now we have the key, we can activate it
@@ -186,8 +180,8 @@ void diffieHellman::HandlePayload(sshBlob *data)
 //Data (hex):
 //0000004D
 
-static SHA1 dh_hash;
-
+namespace {
+    
 const UInt32 diffieHellman_group1[] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xC90FDAA2, 0x2168C234, 0xC4C6628B, 0x80DC1CD1,
     0x29024E08, 0x8A67CC74, 0x020BBEA6, 0x3B139B22, 0x514A0879, 0x8E3404DD,
@@ -196,23 +190,16 @@ const UInt32 diffieHellman_group1[] = {
     0xEE386BFB, 0x5A899FA5, 0xAE9F2411, 0x7C4B1FE6, 0x49286651, 0xECE65381,
     0xFFFFFFFF, 0xFFFFFFFF
 };
+    
+} // namespace
 
-dhGroup1::dhGroup1(sshTransport *owner, TransportMode mode)
-:diffieHellman(owner, mode)
+Group1::Group1(Transport::Transport& owner, Transport::Mode mode)
+:Base(owner, mode, Maths::BigNumber(diffieHellman_group1, sizeof(diffieHellman_group1) / sizeof(diffieHellman_group1[0]), true), Maths::BigNumber(2))
 {
-    hash = &dh_hash;
 }
 
-BigNumber dhGroup1::Prime(void)
-{
-    return BigNumber(diffieHellman_group1, sizeof(diffieHellman_group1) / sizeof(diffieHellman_group1[0]), true);
-}
-
-BigNumber dhGroup1::Generator(void)
-{
-    return 2;
-}
-
+namespace {
+    
 const UInt32 diffieHellman_group14[] = {
     0xFFFFFFFF, 0xFFFFFFFF, 0xC90FDAA2, 0x2168C234, 0xC4C6628B, 0x80DC1CD1,
     0x29024E08, 0x8A67CC74, 0x020BBEA6, 0x3B139B22, 0x514A0879, 0x8E3404DD,
@@ -227,18 +214,11 @@ const UInt32 diffieHellman_group14[] = {
     0x15728E5A, 0x8AACAA68, 0xFFFFFFFF, 0xFFFFFFFF
 };
 
-dhGroup14::dhGroup14(sshTransport *owner, TransportMode mode)
-:diffieHellman(owner, mode)
+} // namespace
+    
+Group14::Group14(Transport::Transport& owner, Transport::Mode mode)
+:Base(owner, mode, Maths::BigNumber(diffieHellman_group14, sizeof(diffieHellman_group14) / sizeof(diffieHellman_group14[0]), true), Maths::BigNumber(2))
 {
-    hash = &dh_hash;
 }
 
-BigNumber dhGroup14::Prime(void)
-{
-    return BigNumber(diffieHellman_group14, sizeof(diffieHellman_group14) / sizeof(diffieHellman_group14[0]), true);
-}
-
-BigNumber dhGroup14::Generator(void)
-{
-    return 2;
-}
+} // namespace minissh::Algorithms::DiffieHellman

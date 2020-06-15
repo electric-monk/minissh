@@ -3,41 +3,41 @@
 //  minissh
 //
 //  Created by Colin David Munro on 13/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__Client__
-#define __minissh__Client__
+#pragma once
 
 #include "Transport.h"
 
-class sshClient : public sshTransport
+namespace minissh::Core {
+
+class Client : public Transport::Transport
 {
 public:
     class Enabler;
     
-    class Service : public sshMessageHandler
+    class Service : public minissh::Transport::MessageHandler
     {
     public:
         virtual void Start(void) = 0;
     };
 
-    class Enabler : public sshMessageHandler
+    class Enabler : public minissh::Transport::MessageHandler
     {
     public:
-        virtual void Request(const char *name, Service *service) = 0;
+        virtual void Request(const std::string& name, Service* service) = 0;
     };
     
-    sshClient();
-    ~sshClient();
+    Client(Maths::RandomSource& source);
     
-    Enabler* DefaultEnabler(void);  // Doesn't do any authentication/etc., just asks for it
+    std::shared_ptr<Enabler> DefaultEnabler(void);  // Doesn't do any authentication/etc., just asks for it
 
 protected:
     void KeysChanged(void);
     
 private:
-    Enabler *_enabler;
+    std::shared_ptr<Enabler> _enabler;
 };
 
-#endif /* defined(__minissh__Client__) */
+} // namespace minissh::Core

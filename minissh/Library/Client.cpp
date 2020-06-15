@@ -3,7 +3,7 @@
 //  minissh
 //
 //  Created by Colin David Munro on 13/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include "Client.h"
@@ -12,106 +12,101 @@
 #include <stdio.h>
 #include <memory.h>
 
-namespace sshClient_Internal {
-    const Byte messages[] = {SSH_MSG_SERVICE_ACCEPT};
+namespace minissh::Core {
 
-    class Enabler : public sshClient::Enabler
+namespace {
+    
+    const Byte messages[] = {SERVICE_ACCEPT};
+
+    class DefaultEnablerImpl : public Client::Enabler
     {
     public:
-        Enabler(sshClient *owner)
+        DefaultEnablerImpl(Client& owner)
+        :_owner(owner)
         {
-            _owner = owner;
-            _owner->RegisterForPackets(this, messages, sizeof(messages) / sizeof(messages[0]));
-            _pending = new sshDictionary();
+            _owner.RegisterForPackets(this, messages, sizeof(messages) / sizeof(messages[0]));
             _running = false;
         }
-        ~Enabler()
+        ~DefaultEnablerImpl()
         {
-            _owner->UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
-            _pending->Release();
+            _owner.UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
         }
         
         void Start(void)
         {
             if (!_running) {
                 _running = true;
-                if (_pending->AllKeys()->Count() != 0)
+                if (_pending.size() != 0)
                     RequestNext();
             }
         }
         
-        void Request(const char *name, sshClient::Service *service)
+        void Request(const std::string& name, Client::Service* service) override
         {
             // Add to list
-            sshString *nameString = new sshString();
-            nameString->AppendFormat("%s", name);
-            _pending->Set(nameString, service);
-            nameString->Release();
+            _pending.push_back({name, service});
             // If necessary, trigger
-            if (_running && (_pending->AllKeys()->Count() == 1))
+            if (_running && (_pending.size() == 1))
                 RequestNext();
         }
         
-        void HandlePayload(sshBlob *data)
+        void HandlePayload(Types::Blob data) override
         {
-            sshReader reader(data);
-            if (reader.ReadByte() != SSH_MSG_SERVICE_ACCEPT)
+            Types::Reader reader(data);
+            if (reader.ReadByte() != SERVICE_ACCEPT)
                 ;//error
-            sshString *result = reader.ReadString();
-            sshString *expected = _pending->AllKeys()->ItemAt(0);
-            if (!result->IsEqual(expected)) {
+            std::string result = reader.ReadString().AsString();
+            RequestRecord &record = _pending.front();
+            if (result.compare(record.expected) != 0) {
                 // error
                 return;
             }
-            sshClient::Service *service = (sshClient::Service*)_pending->ObjectFor(expected);
-            service->Start();
+            record.service->Start();
             DEBUG_LOG_STATE(("Service accepted\n"));
-            _pending->Set(expected, NULL);
+            _pending.erase(_pending.begin());
             // TODO: tell someone it's done, so they can proceed if necessary
-            if (_pending->AllKeys()->Count() != 0)
+            if (_pending.size() != 0)
                 RequestNext();
         }
         
     private:
+        struct RequestRecord {
+            std::string expected;
+            Client::Service *service;
+        };
+        
         bool _running;
-        sshClient *_owner;
-        sshDictionary *_pending;
+        Client& _owner;
+        std::vector<RequestRecord> _pending;
         
         void RequestNext(void)
         {
-            sshBlob *message = new sshBlob();
-            sshWriter writer(message);
-            writer.Write(Byte(SSH_MSG_SERVICE_REQUEST));
-            writer.Write(_pending->AllKeys()->ItemAt(0));
-            _owner->Send(message);
-            message->Release();
+            Types::Blob message;
+            Types::Writer writer(message);
+            writer.Write(Byte(SERVICE_REQUEST));
+            writer.WriteString(_pending.front().expected);
+            _owner.Send(message);
             
-            char *temp = new char[_pending->AllKeys()->ItemAt(0)->Length() + 1];
-            memcpy(temp, _pending->AllKeys()->ItemAt(0)->Value(), _pending->AllKeys()->ItemAt(0)->Length());
-            temp[_pending->AllKeys()->ItemAt(0)->Length()] = 0;
-            DEBUG_LOG_STATE(("Requesting basic service: %s\n", temp));
-            delete[] temp;
+            DEBUG_LOG_STATE(("Requesting basic service: %s\n", _pending.front().expected.c_str()));
         }
     };
-}
+    
+} // namespace
 
-sshClient::sshClient()
+Client::Client(Maths::RandomSource& source)
+:Transport(source), _enabler(std::make_shared<DefaultEnablerImpl>(*this))
 {
-    _enabler = new sshClient_Internal::Enabler(this);
 }
 
-sshClient::~sshClient()
-{
-    _enabler->Release();
-}
-
-sshClient::Enabler* sshClient::DefaultEnabler(void)
+std::shared_ptr<Client::Enabler> Client::DefaultEnabler(void)
 {
     return _enabler;
 }
 
-void sshClient::KeysChanged(void)
+void Client::KeysChanged(void)
 {
-    sshTransport::KeysChanged();
-    ((sshClient_Internal::Enabler*)_enabler)->Start();
+    Transport::KeysChanged();
+    std::dynamic_pointer_cast<DefaultEnablerImpl>(_enabler)->Start();
 }
+
+} // namespace minissh::Core

@@ -3,37 +3,32 @@
 //  minissh
 //
 //  Created by Colin David Munro on 9/02/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef __minissh__SSH_HMAC__
-#define __minissh__SSH_HMAC__
+#pragma once
 
+#include "Types.h"
 #include "Transport.h"
 
-class HMAC_SHA1 : public sshHMACAlgorithm
+namespace minissh::Algorithm {
+
+class HMAC_SHA1 : public Transport::HMACAlgorithm
 {
 public:
-    HMAC_SHA1(sshTransport *owner, TransportMode mode);
+    HMAC_SHA1(Transport::Transport& owner, Transport::Mode mode);
     
-    sshBlob* Generate(sshBlob *packet);
+    Types::Blob Generate(Types::Blob packet);
     
     int Length(void);
     
-    class Factory : public sshConfiguration::FactoryTemplate<HMAC_SHA1>
+    static constexpr char Name[] = "hmac-sha1";
+    class Factory : public Transport::Configuration::Instantiatable<HMAC_SHA1, Transport::HMACAlgorithm>
     {
-    public:
-        const char* Name(void) const
-        {
-            return "hmac-sha1";
-        }
     };
 
-protected:
-    ~HMAC_SHA1();
-    
 private:
-    sshBlob *_key;
+    Types::Blob _key;
 };
 
-#endif /* defined(__minissh__SSH_HMAC__) */
+} // namespace minissh::Algorithm

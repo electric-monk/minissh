@@ -3,11 +3,10 @@
 //  minissh
 //
 //  Created by Colin David Munro on 10/01/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
-#ifndef minissh_Types_h
-#define minissh_Types_h
+#pragma once
 
 #ifdef _DEBUG
 #define DEBUG_KEX
@@ -26,157 +25,67 @@
 #define DEBUG_LOG_TRANSFER(x)
 #endif
 
+#include <memory>
+#include <string>
+#include <vector>
 #include "Maths.h"
+#include "BaseTypes.h"
 
-#ifdef __cplusplus
+namespace minissh::Types {
 
-class sshBlob;
+class Blob;
 
-namespace sshTypes_Internal {
-    class Node;
-    class Map;
-}
-
-class sshObject
+class Blob
 {
 public:
-    class Releaser
-    {
-    public:
-        Releaser();
-        ~Releaser();
-        
-        void Flush(void);
-    private:
-        void *_data, *_other;
-        friend sshObject;
-    };
-    
-    sshObject();
-    
-    void AddRef(void);
-    void Release(void);
-    
-    void Autorelease(void);
-    
-protected:
-    virtual ~sshObject() {}
-    
-private:
-    UInt32 _refCount;
-};
+    Blob();
+    Blob(const Byte* data, int length);
+    Blob(const Blob& other);
+    ~Blob();
 
-class sshString : public sshObject
-{
-public:
-    sshString();
-    sshString(sshBlob *blob);
-    
-    const char* Value(void) const;  // Not null terminated
-    int Length(void) const;
-    bool IsEqual(const sshString *other) const;
-    bool IsEqual(const char *other) const;
-    
-    void Reset(void);
-    void AppendFormat(const char *format, ...);
-    void Append(const char *bytes, int length);
-    void Append(sshString *string);
-    
-    void DebugDump(void);
-    
-    sshBlob* AsBlob(void);
-    
-protected:
-    ~sshString();
-    
-private:
-    void CheckSize(int length);
-    
-    char *_data;
-    int _len, _max;
-};
-
-class sshNameList : public sshObject
-{
-public:
-    sshNameList();
-    
-    void Add(sshString *item);
-    void Remove(int index);
-    void Remove(sshString *item);
-    void Reset(void);
-    
-    int Count(void) const;
-    sshString* ItemAt(int index) const;
-    
-protected:
-    ~sshNameList();
-    
-private:
-    sshTypes_Internal::Node *_first, *_last;
-};
-
-class sshBlob : public sshObject
-{
-public:
-    sshBlob();
-    sshBlob(sshString *string);
-    
-    void Reset(void);
-    void Append(const Byte *bytes, int length);
-    void Strip(int location, int length);
-    
     const Byte* Value(void) const;
     int Length(void) const;
     
-    bool Compare(sshBlob *other);
+    bool Compare(const Blob& other) const;
     
-    sshString* AsString(void);
+    std::string AsString(void) const;
     
-    sshBlob* XorWith(sshBlob *other);
+    Blob XorWith(const Blob& other) const;
     
     void DebugDump(void);
     
-protected:
-    ~sshBlob();
+    Blob& operator=(Blob other)
+    {
+        std::swap(_max, other._max);
+        std::swap(_len, other._len);
+        std::swap(_value, other._value);
+        return *this;
+    }
     
+    // Mutability
+    void Reset(void);
+    void Append(const Byte *bytes, int length);
+    void Strip(int location, int length);
+    Blob Copy(void) const;
+
 private:
     Byte *_value;
     int _len, _max;
 };
 
-class sshDictionary : public sshObject
+class Reader
 {
 public:
-    sshDictionary();
-    
-    void Set(sshString *key, sshObject *value);
-    sshObject* ObjectFor(sshString *key) const;
-    void Reset(void);
-    
-    sshNameList* AllKeys(void) const;
-    
-protected:
-    ~sshDictionary();
-    
-private:
-    sshTypes_Internal::Map *_first, *_last;
-};
-
-class sshReader
-{
-public:
-    sshReader(const sshBlob *data, int offset = 0);
-    sshReader(const sshString *string);
+    Reader(const Blob& data, int offset = 0);
     
     Byte ReadByte(void);
-    sshBlob* ReadBytes(int length);
+    Blob ReadBytes(int length);
     bool ReadBoolean(void);
     UInt32 ReadUInt32(void);
     UInt64 ReadUInt64(void);
-    sshString* ReadString(void);
-    BigNumber ReadMPInt(void);
-    sshNameList* ReadNameList(void);
+    Blob ReadString(void);
+    Maths::BigNumber ReadMPInt(void);
+    std::vector<std::string> ReadNameList(void);
     void SkipBytes(int length);
     
     int Remaining(void) { return _length; }
@@ -184,26 +93,27 @@ public:
 private:
     const Byte *_cursor;
     int _length;
+    
+    void Check(size_t length);
 };
 
-class sshWriter
+class Writer
 {
 public:
-    sshWriter(sshBlob *output);
-    ~sshWriter();
+    Writer(Blob& output);
     
     void Write(Byte byte);
-    void Write(sshBlob *bytes);
+    void Write(Blob bytes);
     void Write(bool boolean);
     void Write(UInt32 value);
     void Write(UInt64 value);
-    void Write(sshString *string);
-    void Write(BigNumber &value);
-    void Write(sshNameList *nameList);
+    void WriteString(Blob string);
+    void WriteString(const std::string& string);
+    void Write(const Maths::BigNumber& value);
+    void Write(const std::vector<std::string>& nameList);
     
 private:
-    sshBlob *_blob;
+    Blob &_blob;
 };
 
-#endif
-#endif
+} // namespace minissh::Types

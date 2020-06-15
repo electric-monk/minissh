@@ -3,7 +3,7 @@
 //  minissh
 //
 //  Created by Colin David Munro on 10/01/2016.
-//  Copyright (c) 2016 MICE Software. All rights reserved.
+//  Copyright (c) 2016-2020 MICE Software. All rights reserved.
 //
 
 #include <stdlib.h>
@@ -16,27 +16,65 @@
 #include "Hash.h"
 
 #ifdef DEBUG_LOG_TRANSFER_INFO
-static void TestPrint(char c, sshString *line)
+static void TestPrint(char c, const std::string& line)
 {
-    fprintf(stdout, "%c> ", c);
-    const char *str = line->Value();
-    int len = line->Length();
-    while (len) {
-        fputc(*str, stdout);
-        str++;
-        len--;
-    }
-    fprintf(stdout, "\n");
+    fprintf(stdout, "%c> %s\n", c, line.c_str());
 }
 #else
 #define TestPrint(x, y)
 #endif
 
-namespace sshTransport_Internal {
+namespace minissh::Transport {
+
+namespace {
+
+// This class allows the transport to start up in an unencrypted mode without treating it as a special case
+class NoEncryption : public EncryptionAlgorithm
+{
+public:
+    NoEncryption()
+    {
+    }
+    
+    int BlockSize(void) override
+    {
+        return 8;
+    }
+    
+    Types::Blob Encrypt(Types::Blob data) override
+    {
+        return data;
+    }
+    
+    Types::Blob Decrypt(Types::Blob data) override
+    {
+        return data;
+    }
+};
+
+class NoHmac : public HMACAlgorithm
+{
+public:
+    NoHmac()
+    {
+    }
+    
+    Types::Blob Generate(Types::Blob packet) override
+    {
+        return Types::Blob();
+    }
+    
+    int Length(void) override
+    {
+        return 0;
+    }
+};
+
+} // namespace
+    
+namespace Internal {
     TransportInfo::TransportInfo()
     {
-        version = NULL;
-        message = NULL;
     }
     
     TransportInfo::~TransportInfo()
@@ -46,31 +84,25 @@ namespace sshTransport_Internal {
     
     void TransportInfo::Reset(void)
     {
-        if (version) {
-            version->Release();
-            version = NULL;
-        }
-        if (message) {
-            message->Release();
-            message = NULL;
-        }
+        // TODO
     }
     
-    class Handler : public sshObject
+    class Handler
     {
     public:
-        Handler(sshTransport *owner)
+        Handler(Transport& owner)
+        :_owner(owner)
         {
-            _owner = owner;
         }
     
         virtual void HandleMoreData(UInt32 previousLength) = 0;
         
     protected:
-        sshTransport *_owner;
+        Transport &_owner;
     };
     
-    const char crlf[] = {13, 10, 0};
+    constexpr char crlf[] = {13, 10, 0};
+    const char lf[] = {10, 0};
     const char* ssh = "SSH-";
     const char* ssh_ident = "SSH-2.0-miceSSH_1.0";
 
@@ -94,10 +126,10 @@ namespace sshTransport_Internal {
         return -1;
     }
     
-    static bool MatchStringStart(const sshString *first, const char *second, int secondLength)
+    static bool MatchStringStart(const std::string& first, const char *second, int secondLength)
     {
-        const char *bytes = first->Value();
-        int bytesLength = first->Length();
+        const char *bytes = first.c_str();
+        int bytesLength = first.length();
         if (bytesLength < secondLength)
             return false;
         for (int i = 0; i < secondLength; i++) {
@@ -107,31 +139,27 @@ namespace sshTransport_Internal {
         return true;
     }
     
-    static sshString* FindLine(sshBlob *blob)
+    static std::optional<std::string> FindLine(Types::Blob& blob)
     {
         // Get raw buffer
-        const Byte *bytes = blob->Value();
-        int length = blob->Length();
+        const Byte *bytes = blob.Value();
+        int length = blob.Length();
         // Find CR-LF
         int tostrip = (int)strlen(crlf);
         int location = MatchCharacters(bytes, length, crlf, tostrip);
         if (location == -1) {
             // Turns out sometimes OpenSSH breaks the standard and only sends LF
-            tostrip = (int)strlen(crlf) - 1;
-            location = MatchCharacters(bytes, length, crlf + 1, tostrip);
+            tostrip = (int)strlen(lf);
+            location = MatchCharacters(bytes, length, lf, tostrip);
         }
         if (location == -1)
-            return NULL;
+            return {};
         // Make a string
-        sshString *result = NULL;
-        if (location != 0) {
-            result = new sshString();
-            result->Append((char*)bytes, location);
-        }
+        std::string result(reinterpret_cast<const char*>(bytes), location);
         // Remove used data
-        blob->Strip(0, location + tostrip);
+        blob.Strip(0, location + tostrip);
         // Done
-        return result;
+        return location > 0 ? std::optional<std::reference_wrapper<std::string>>{result} : std::nullopt;
     }
     
     class Initialiser : public Handler
@@ -139,37 +167,29 @@ namespace sshTransport_Internal {
     public:
         // Read in strings until we get the SSH initialisation string
         
-        Initialiser(sshTransport *owner)
+        Initialiser(Transport& owner)
         :Handler(owner)
         {
-            _message = new sshNameList();
         }
         
         void HandleMoreData(UInt32 previousLength)
         {
             while (true) {
-                sshString *line = FindLine(_owner->inputBuffer);
-                if (line == NULL)
+                std::optional<std::string> line = FindLine(_owner.inputBuffer);
+                if (!line)
                     return;
-                TestPrint('S', line);
-                if (MatchStringStart(line, ssh, (int)strlen(ssh))) {
-                    _owner->InitialiseSSH(line, _message->Count() ? _message : NULL);
+                TestPrint('S', *line);
+                if (MatchStringStart(*line, ssh, (int)strlen(ssh))) {
+                    _owner.InitialiseSSH(*line, _message);
                     return;
                 } else {
-                    _message->Add(line);
+                    _message.push_back(*line);
                 }
-                line->Release();
             }
         }
         
-    protected:
-        ~Initialiser()
-        {
-            _message->Release();
-        }
-        
     private:
-        sshNameList *_message;
+        std::vector<std::string> _message;
     };
     
     class BlockReceiver : public Handler
@@ -177,392 +197,301 @@ namespace sshTransport_Internal {
     public:
         // Read in blocks of a specific size
         
-        BlockReceiver(sshTransport *owner)
+        BlockReceiver(Transport& owner)
         :Handler(owner)
         {
-            _packet = NULL;
         }
         
         void HandleMoreData(UInt32 previousLength)
         {
-            int blockSize = ((_owner->mode == Server) ? _owner->encryptionToServer : _owner->encryptionToClient)->BlockSize();
+            int blockSize = ((_owner.mode == Server) ? _owner.encryptionToServer : _owner.encryptionToClient)->BlockSize();
             int amount;
-            while (_owner->inputBuffer->Length() >= (amount = NextRead(blockSize))) {
+            while (_owner.inputBuffer.Length() >= (amount = NextRead(blockSize))) {
                 if (!_packet)
-                    _packet = new sshPacket(_owner);
-                _packet->Append(_owner->inputBuffer->Value(), amount);
-                _owner->inputBuffer->Strip(0, amount);
+                    _packet.emplace(Packet(_owner));
+                _packet->Append(_owner.inputBuffer.Value(), amount);
+                _owner.inputBuffer.Strip(0, amount);
                 if (_packet->Satisfied()) {
-                    _owner->HandlePacket(_packet);
-                    _packet->Release();
-                    _packet = NULL;
+                    _owner.HandlePacket(*_packet);
+                    _packet = std::nullopt;
                 }
             }
         }
         
     private:
-        sshPacket *_packet;
+        std::optional<Packet> _packet;
         
         UInt32 NextRead(UInt32 blockSize)
         {
             if (!_packet)
                 return blockSize;
-            UInt32 amount = _packet->Requires();
-            if (amount > blockSize)
-                amount = blockSize;
-            return amount;
+            return std::min(_packet->Requires(), blockSize);
         }
     };
     
-    static sshString* CheckGuess(sshNameList *client, sshNameList *server)
+    static std::optional<std::string> CheckGuess(const std::vector<std::string>& client, const std::vector<std::string>& server)
     {
-        sshString *clientGuess = client->ItemAt(0);
-        if (clientGuess->IsEqual(server->ItemAt(0)))
+        std::string clientGuess = client.front();
+        if (clientGuess.compare(server.front()) == 0)
             return clientGuess;
-        return NULL;
+        return {};
     }
     
-    static sshString* FindMatch(sshNameList *client, sshNameList *server)
+    static std::optional<std::string> FindMatch(const std::vector<std::string>& client, const std::vector<std::string>& server)
     {
-        for (int i = 0; i < client->Count(); i++) {
-            sshString *name = client->ItemAt(i);
-            for (int j = 0; j < server->Count(); j++) {
-                if (name->IsEqual(server->ItemAt(j)))
+        for (auto const& name : client) {
+            for (auto const& sname : server) {
+                if (name.compare(sname) == 0)
                     return name;
             }
         }
-        return NULL;
+        return {};
     }
     
-    static sshString* FindMatch(TransportMode mode, sshNameList *remoteList, sshDictionary *localList)
+    template<class K, class V> std::vector<K> AllKeys(const std::map<K, V>& input)
     {
-        sshString *result = FindMatch((mode == Server) ? remoteList : localList->AllKeys(), (mode == Server) ? localList->AllKeys() : remoteList);
-        if (result)
-            result->AddRef();
+        std::vector<K> result;
+        result.reserve(input.size());
+        for (auto const& entry : input)
+            result.push_back(entry.first);
         return result;
     }
     
-    class KexHandler : public sshMessageHandler
+    template<class C> std::optional<std::string> FindMatch(Mode mode, const std::vector<std::string>& remoteList, const std::map<std::string, C>& localList)
+    {
+        std::vector<std::string> localListKeys = AllKeys(localList);
+        return FindMatch(
+            (mode == Server) ? remoteList : localListKeys,
+            (mode == Server) ? localListKeys : remoteList
+        );
+    }
+    
+    class KexHandler : public MessageHandler
     {
     private:
-        sshTransport *_owner;
-        TransportMode _mode;
+        Transport &_owner;
+        Mode _mode;
         bool _expectingInit;
-        sshKeyExchanger *_activeExchanger;
+        std::shared_ptr<KeyExchanger> _activeExchanger;
         
         void SendKex(void)
         {
             if (_expectingInit)
                 return;
-            sshBlob *output = new sshBlob();
-            sshWriter writer(output);
-            writer.Write(Byte(SSH_MSG_KEXINIT));
+            Types::Blob output;
+            Types::Writer writer(output);
+            writer.Write(KEXINIT);
             // Cookie
             for (int i = 0; i < 4; i++)
-                writer.Write(UInt32(_owner->random->Random()));
+                writer.Write(UInt32(_owner.random.Random()));
             // All the lists
-            writer.Write(_owner->configuration->supportedKeyExchanges->AllKeys());
-            writer.Write(_owner->configuration->serverHostKeyAlgorithms->AllKeys());
-            writer.Write(_owner->configuration->encryptionAlgorithms_clientToServer->AllKeys());
-            writer.Write(_owner->configuration->encryptionAlgorithms_serverToClient->AllKeys());
-            writer.Write(_owner->configuration->macAlgorithms_clientToServer->AllKeys());
-            writer.Write(_owner->configuration->macAlgorithms_serverToClient->AllKeys());
-            writer.Write(_owner->configuration->compressionAlgorithms_clientToServer->AllKeys());
-            writer.Write(_owner->configuration->compressionAlgorithms_serverToClient->AllKeys());
-            writer.Write(_owner->configuration->languages_clientToServer->AllKeys());
-            writer.Write(_owner->configuration->languages_serverToClient->AllKeys());
+            writer.Write(AllKeys(_owner.configuration.supportedKeyExchanges));
+            writer.Write(AllKeys(_owner.configuration.serverHostKeyAlgorithms));
+            writer.Write(AllKeys(_owner.configuration.encryptionAlgorithms_clientToServer));
+            writer.Write(AllKeys(_owner.configuration.encryptionAlgorithms_serverToClient));
+            writer.Write(AllKeys(_owner.configuration.macAlgorithms_clientToServer));
+            writer.Write(AllKeys(_owner.configuration.macAlgorithms_serverToClient));
+            writer.Write(AllKeys(_owner.configuration.compressionAlgorithms_clientToServer));
+            writer.Write(AllKeys(_owner.configuration.compressionAlgorithms_serverToClient));
+            writer.Write(AllKeys(_owner.configuration.languages_clientToServer));
+            writer.Write(AllKeys(_owner.configuration.languages_serverToClient));
             writer.Write(bool(false));  // TODO: guesses
             writer.Write(UInt32(0));    // Reserved
             
-            _owner->local.kexPayload = output;
+            _owner.local.kexPayload = output;
             
             _expectingInit = true;
-            _owner->Send(output);
+            _owner.Send(output);
         }
     public:
-        KexHandler(sshTransport *owner, TransportMode mode)
+        KexHandler(Transport& owner, Mode mode)
+        :_owner(owner), _mode(mode)
         {
             _expectingInit = false;
             
-            const Byte messages[] = {SSH_MSG_KEXINIT, SSH_MSG_NEWKEYS};
-            _owner = owner;
-            _owner->RegisterForPackets(this, messages, sizeof(messages) / sizeof(messages[0]));
-            _mode = mode;
-
-            selectedEncryptionToServer = NULL;
-            selectedEncryptionToClient = NULL;
-            selectedMACToServer = NULL;
-            selectedMACToClient = NULL;
-            selectedCompressionToServer = NULL;
-            selectedCompressionToClient = NULL;
+            const Byte messages[] = {KEXINIT, NEWKEYS};
+            _owner.RegisterForPackets(this, messages, sizeof(messages) / sizeof(messages[0]));
         }
         
-        void HandlePayload(sshBlob *data)
+        ~KexHandler()
         {
-            sshReader reader(data);
+            const Byte messages[] = {KEXINIT, NEWKEYS};
+            _owner.UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
+        }
+
+        void HandlePayload(Types::Blob data) override
+        {
+            Types::Reader reader(data);
             
             switch (reader.ReadByte()) {
-                case SSH_MSG_KEXINIT:
+                case KEXINIT:
                 {
                     // Store the remote's payload
-                    if (_owner->remote.kexPayload)
-                        _owner->remote.kexPayload->Release();
-                    _owner->remote.kexPayload = data;
-                    _owner->remote.kexPayload->AddRef();
+                    _owner.remote.kexPayload = data;
                     // Get values
                     reader.SkipBytes(16);   // Cookie
-                    sshNameList *kexAlgorithms = reader.ReadNameList();  // Kex Algorithms
-                    sshNameList *hostKeyAlgorithms = reader.ReadNameList();  // Server Host Key Algorithms
-                    sshNameList *encryptionAlgorithms_C2S = reader.ReadNameList();  // encryption (C2S)
-                    sshNameList *encryptionAlgorithms_S2C = reader.ReadNameList();  // encryption (S2C)
-                    sshNameList *mac_C2S = reader.ReadNameList();  // MAC (C2S)
-                    sshNameList *mac_S2C = reader.ReadNameList();  // MAC (S2C)
-                    sshNameList *compression_C2S = reader.ReadNameList();  // Compression (C2S)
-                    sshNameList *compression_S2C = reader.ReadNameList();  // Compression (S2C)
-                    sshNameList *language_C2S = reader.ReadNameList();  // Language (C2S)
-                    sshNameList *language_S2C = reader.ReadNameList();  // Language (S2C)
+                    std::vector<std::string> kexAlgorithms = reader.ReadNameList();  // Kex Algorithms
+                    std::vector<std::string> hostKeyAlgorithms = reader.ReadNameList();  // Server Host Key Algorithms
+                    std::vector<std::string> encryptionAlgorithms_C2S = reader.ReadNameList();  // encryption (C2S)
+                    std::vector<std::string> encryptionAlgorithms_S2C = reader.ReadNameList();  // encryption (S2C)
+                    std::vector<std::string> mac_C2S = reader.ReadNameList();  // MAC (C2S)
+                    std::vector<std::string> mac_S2C = reader.ReadNameList();  // MAC (S2C)
+                    std::vector<std::string> compression_C2S = reader.ReadNameList();  // Compression (C2S)
+                    std::vector<std::string> compression_S2C = reader.ReadNameList();  // Compression (S2C)
+                    std::vector<std::string> language_C2S = reader.ReadNameList();  // Language (C2S)
+                    std::vector<std::string> language_S2C = reader.ReadNameList();  // Language (S2C)
                     bool kex_follows = reader.ReadBoolean();   // First KEX packet follows
                     // Reply, if necessary
                     if (!_expectingInit)
                         SendKex();
                     // Do something about it
-                    sshString *kexAlgo = NULL;
+                    std::optional<std::string> kexAlgo;
                     if (kex_follows) {
-                        kexAlgo = CheckGuess(kexAlgorithms, _owner->configuration->supportedKeyExchanges->AllKeys());
+                        kexAlgo = CheckGuess(kexAlgorithms, AllKeys(_owner.configuration.supportedKeyExchanges));
                         if (!kexAlgo)
-                            _owner->SkipPacket();
+                            _owner.SkipPacket();
                     }
                     if (!kexAlgo)
-                        kexAlgo = FindMatch(_mode, kexAlgorithms, _owner->configuration->supportedKeyExchanges);
+                        kexAlgo = FindMatch(_mode, kexAlgorithms, _owner.configuration.supportedKeyExchanges);
                     if (!kexAlgo) {
-                        _owner->Panic(sshTransport::prNoMatchingAlgorithm);
+                        _owner.Panic(Transport::PanicReason::NoMatchingAlgorithm);
                         return;
                     }
                     // Find the other algorithms (less complicated)
-                    if (selectedEncryptionToClient)
-                        selectedEncryptionToClient->Release();
-                    selectedEncryptionToClient = FindMatch(_mode, encryptionAlgorithms_S2C, _owner->configuration->encryptionAlgorithms_serverToClient);
-                    if (selectedEncryptionToServer)
-                        selectedEncryptionToServer->Release();
-                    selectedEncryptionToServer = FindMatch(_mode, encryptionAlgorithms_C2S, _owner->configuration->encryptionAlgorithms_clientToServer);
-                    if (selectedMACToClient)
-                        selectedMACToClient->Release();
-                    selectedMACToClient = FindMatch(_mode, mac_S2C, _owner->configuration->macAlgorithms_serverToClient);
-                    if (selectedMACToServer)
-                        selectedMACToServer->Release();
-                    selectedMACToServer = FindMatch(_mode, mac_C2S, _owner->configuration->macAlgorithms_clientToServer);
-                    if (selectedCompressionToClient)
-                        selectedCompressionToClient->Release();
-                    selectedCompressionToClient = FindMatch(_mode, compression_S2C, _owner->configuration->compressionAlgorithms_serverToClient);
-                    if (selectedCompressionToServer)
-                        selectedCompressionToServer->Release();
-                    selectedCompressionToServer = FindMatch(_mode, compression_C2S, _owner->configuration->compressionAlgorithms_clientToServer);
+                    selectedEncryptionToClient = FindMatch(_mode, encryptionAlgorithms_S2C, _owner.configuration.encryptionAlgorithms_serverToClient);
+                    selectedEncryptionToServer = FindMatch(_mode, encryptionAlgorithms_C2S, _owner.configuration.encryptionAlgorithms_clientToServer);
+                    selectedMACToClient = FindMatch(_mode, mac_S2C, _owner.configuration.macAlgorithms_serverToClient);
+                    selectedMACToServer = FindMatch(_mode, mac_C2S, _owner.configuration.macAlgorithms_clientToServer);
+                    selectedCompressionToClient = FindMatch(_mode, compression_S2C, _owner.configuration.compressionAlgorithms_serverToClient);
+                    selectedCompressionToServer = FindMatch(_mode, compression_C2S, _owner.configuration.compressionAlgorithms_clientToServer);
                     if (!(selectedCompressionToClient && selectedCompressionToServer && selectedEncryptionToClient && selectedEncryptionToServer && selectedMACToClient && selectedMACToServer)) {
-                        _owner->Panic(sshTransport::prNoMatchingAlgorithm);
+                        _owner.Panic(Transport::PanicReason::NoMatchingAlgorithm);
                         return;
                     }
                     // Select host key algorithm (TODO: this should be done in conjunction with kex)
-                    sshString *hostKeyAlgo = FindMatch(_mode, hostKeyAlgorithms, _owner->configuration->serverHostKeyAlgorithms);
+                    std::optional<std::string> hostKeyAlgo = FindMatch(_mode, hostKeyAlgorithms, _owner.configuration.serverHostKeyAlgorithms);
                     if (!hostKeyAlgo) {
-                        _owner->Panic(sshTransport::prNoMatchingAlgorithm);
+                        _owner.Panic(Transport::PanicReason::NoMatchingAlgorithm);
                         return;
                     }
                     // Start
-                    _owner->hostKeyAlgorithm = (sshHostKeyAlgorithm*)((sshConfiguration::Factory*)_owner->configuration->serverHostKeyAlgorithms->ObjectFor(hostKeyAlgo))->Instantiate(_owner, _mode);
-                    _activeExchanger= (sshKeyExchanger*)((sshConfiguration::Factory*)_owner->configuration->supportedKeyExchanges->ObjectFor(kexAlgo))->Instantiate(_owner, _mode);
-                    _owner->keyExchanger = _activeExchanger;
+                    _owner.hostKeyAlgorithm = _owner.configuration.serverHostKeyAlgorithms.at(*hostKeyAlgo)->Create(_owner, _mode);
+                    _activeExchanger = _owner.configuration.supportedKeyExchanges.at(*kexAlgo)->Create(_owner, _mode);
+                    _owner.keyExchanger = _activeExchanger;
                     _activeExchanger->Start();
                 }
                     break;
-                case SSH_MSG_NEWKEYS:
+                case NEWKEYS:
                     _expectingInit = false;
                     // New keys ready to go, all incoming messages should now be using the new algorithms
-                    _owner->ResetAlgorithms(false);
+                    _owner.ResetAlgorithms(false);
                     break;
             }
         }
         
-        sshString *selectedEncryptionToServer;
-        sshString *selectedEncryptionToClient;
-        sshString *selectedMACToServer;
-        sshString *selectedMACToClient;
-        sshString *selectedCompressionToServer;
-        sshString *selectedCompressionToClient;
-        
-    protected:
-        ~KexHandler()
-        {
-            const Byte messages[] = {SSH_MSG_KEXINIT, SSH_MSG_NEWKEYS};
-            _owner->UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
-            if (selectedEncryptionToServer != NULL)
-                selectedEncryptionToServer->Release();
-            if (selectedEncryptionToClient != NULL)
-                selectedEncryptionToClient->Release();
-            if (selectedMACToServer != NULL)
-                selectedMACToServer->Release();
-            if (selectedMACToClient != NULL)
-                selectedMACToClient->Release();
-            if (selectedCompressionToServer != NULL)
-                selectedCompressionToServer->Release();
-            if (selectedCompressionToClient != NULL)
-                selectedCompressionToClient->Release();
-        }
+        std::optional<std::string> selectedEncryptionToServer;
+        std::optional<std::string> selectedEncryptionToClient;
+        std::optional<std::string> selectedMACToServer;
+        std::optional<std::string> selectedMACToClient;
+        std::optional<std::string> selectedCompressionToServer;
+        std::optional<std::string> selectedCompressionToClient;
     };
     
-    // This class allows the transport to start up in an unencrypted mode without treating it as a special case
-    class NoEncryption : public sshEncryptionAlgorithm
-    {
-    public:
-        NoEncryption()
-        {
-        }
-        
-        int BlockSize(void)
-        {
-            return 8;
-        }
-        
-        sshBlob* Encrypt(sshBlob *data)
-        {
-            return data;
-        }
-        
-        sshBlob* Decrypt(sshBlob *data)
-        {
-            return data;
-        }
-    };
+} // namespace
+
+std::string Transport::StringForPanicReason(PanicReason reason)
+{
+    switch (reason) {
+        case PanicReason::OutOfRange:
+            return "Out of range";
+        case PanicReason::InvalidMessage:
+            return "Invalid message";
+        case PanicReason::NoMatchingAlgorithm:
+            return "No matching algorithm";
+        case PanicReason::BadHostKey:
+            return "Bad host key";
+        case PanicReason::BadSignature:
+            return "Bad signature";
+    }
+}
     
-    class NoHmac : public sshHMACAlgorithm
-    {
-    public:
-        NoHmac()
-        {
-        }
-        
-        sshBlob* Generate(sshBlob *packet)
-        {
-            sshBlob *result = new sshBlob();
-            result->Autorelease();
-            return result;
-        }
-        
-        int Length(void)
-        {
-            return 0;
-        }
-    };
+Packet::Packet(Transport& owner)
+:_owner(owner)
+{
 }
 
-sshConfiguration::sshConfiguration()
+void Packet::Append(const Byte *bytes, int length)
 {
-    supportedKeyExchanges = new sshDictionary();
-    serverHostKeyAlgorithms = new sshDictionary();
-    encryptionAlgorithms_clientToServer = new sshDictionary();
-    encryptionAlgorithms_serverToClient = new sshDictionary();
-    macAlgorithms_clientToServer = new sshDictionary();
-    macAlgorithms_serverToClient = new sshDictionary();
-    compressionAlgorithms_clientToServer = new sshDictionary();
-    compressionAlgorithms_serverToClient = new sshDictionary();
-    languages_clientToServer = new sshDictionary();
-    languages_serverToClient = new sshDictionary();
-}
-
-sshConfiguration::~sshConfiguration()
-{
-    supportedKeyExchanges->Release();
-    serverHostKeyAlgorithms->Release();
-    encryptionAlgorithms_clientToServer->Release();
-    encryptionAlgorithms_serverToClient->Release();
-    macAlgorithms_clientToServer->Release();
-    macAlgorithms_serverToClient->Release();
-    compressionAlgorithms_clientToServer->Release();
-    compressionAlgorithms_serverToClient->Release();
-    languages_clientToServer->Release();
-    languages_serverToClient->Release();
-}
-
-sshPacket::sshPacket(sshTransport *owner)
-{
-    _owner = owner;
-    _decodedBlocks = 0;
-    _requiredBlocks = 0;
-}
-
-void sshPacket::Append(const Byte *bytes, int length)
-{
-    sshBlob::Append(bytes, length);
+    Blob::Append(bytes, length);
     // Hacky
     if (_requiredBlocks && (_decodedBlocks >= _requiredBlocks))
         return;
-    sshEncryptionAlgorithm *decrypter = (_owner->mode == Client) ? _owner->encryptionToClient : _owner->encryptionToServer;
+    std::shared_ptr<EncryptionAlgorithm> decrypter = (_owner.mode == Client) ? _owner.encryptionToClient : _owner.encryptionToServer;
     int blockSize = decrypter->BlockSize();
-    sshBlob *chunk = new sshBlob();
+    Blob chunk;
     int offset = _decodedBlocks * blockSize;
     while ((!_requiredBlocks || (_decodedBlocks < _requiredBlocks)) && ((offset + blockSize) <= Length())) {
-        chunk->Reset();
-        chunk->Append(Value() + offset, blockSize);
-        sshBlob *decoded = decrypter->Decrypt(chunk);
-        memcpy((void*)(Value() + offset), decoded->Value(), blockSize);
+        chunk.Reset();
+        chunk.Append(Value() + offset, blockSize);
+        Blob decoded = decrypter->Decrypt(chunk);
+        memcpy((void*)(Value() + offset), decoded.Value(), blockSize);
         _decodedBlocks++;
         if (!_requiredBlocks)
             _requiredBlocks = (PacketLength() + sizeof(UInt32)) / blockSize;
         offset += blockSize;
     }
-    chunk->Release();
 }
 
-bool sshPacket::Satisfied(void)
+bool Packet::Satisfied(void)
 {
-    sshEncryptionAlgorithm *decrypter = (_owner->mode == Client) ? _owner->encryptionToClient : _owner->encryptionToServer;
-    sshHMACAlgorithm *mac = (_owner->mode == Client) ? _owner->macToClient : _owner->macToServer;
+    std::shared_ptr<EncryptionAlgorithm> decrypter = (_owner.mode == Client) ? _owner.encryptionToClient : _owner.encryptionToServer;
+    std::shared_ptr<HMACAlgorithm> mac = (_owner.mode == Client) ? _owner.macToClient : _owner.macToServer;
     if (Length() < decrypter->BlockSize())
         return false;
     return Length() == PacketLength() + sizeof(UInt32) + mac->Length();
 }
 
-UInt32 sshPacket::Requires(void)
+UInt32 Packet::Requires(void)
 {
-    sshEncryptionAlgorithm *decrypter = (_owner->mode == Client) ? _owner->encryptionToClient : _owner->encryptionToServer;
+    std::shared_ptr<EncryptionAlgorithm> decrypter = (_owner.mode == Client) ? _owner.encryptionToClient : _owner.encryptionToServer;
     UInt32 blockSize = decrypter->BlockSize();
     if (Length() < blockSize)
         return blockSize;
-    sshHMACAlgorithm *mac = (_owner->mode == Client) ? _owner->macToClient : _owner->macToServer;
+    std::shared_ptr<HMACAlgorithm> mac = (_owner.mode == Client) ? _owner.macToClient : _owner.macToServer;
     return PacketLength() + sizeof(UInt32) + mac->Length() - Length();
 }
 
-UInt32 sshPacket::PacketLength(void) const
+UInt32 Packet::PacketLength(void) const
 {
-    sshReader reader(this);
-    return reader.ReadUInt32();
+    return Types::Reader(*this).ReadUInt32();
 }
 
-UInt32 sshPacket::PaddingLength(void) const
+UInt32 Packet::PaddingLength(void) const
 {
-    sshReader reader(this);
+    Types::Reader reader(*this);
     reader.ReadUInt32();    // Skip packet length
     return reader.ReadByte();
 }
 
-sshBlob* sshPacket::Payload(void) const
+Types::Blob Packet::Payload(void) const
 {
-    sshEncryptionAlgorithm *decrypter = (_owner->mode == Client) ? _owner->encryptionToClient : _owner->encryptionToServer;
+    std::shared_ptr<EncryptionAlgorithm> decrypter = (_owner.mode == Client) ? _owner.encryptionToClient : _owner.encryptionToServer;
     if (Length() < decrypter->BlockSize())
-        return NULL;
-    sshReader reader(this);
+        throw new std::runtime_error("Packet does not contain at least a block");
+    Types::Reader reader(*this);
     UInt32 length = reader.ReadUInt32();
     length -= reader.ReadByte();
     length--;
     if (Length() < (length + sizeof(UInt32)))
-        return NULL;
+        throw new std::runtime_error("Packet is missing data");
     return reader.ReadBytes((int)length);
 }
 
-sshBlob* sshPacket::Padding(void) const
+Types::Blob Packet::Padding(void) const
 {
     if (Length() < (PacketLength() + sizeof(UInt32)))
-        return NULL;
-    sshReader reader(this);
+        throw new std::runtime_error("Packet does not contain enough data");
+    Types::Reader reader(*this);
     UInt32 length = reader.ReadUInt32();
     length -= reader.ReadByte();
     length--;
@@ -570,245 +499,180 @@ sshBlob* sshPacket::Padding(void) const
     return reader.ReadBytes((int)length);
 }
 
-sshBlob* sshPacket::MAC(void) const
+Types::Blob Packet::MAC(void) const
 {
-    sshHMACAlgorithm *mac = (_owner->mode == Client) ? _owner->macToClient : _owner->macToServer;
+    std::shared_ptr<HMACAlgorithm> mac = (_owner.mode == Client) ? _owner.macToClient : _owner.macToServer;
     if (Length() < (PacketLength() + mac->Length() + sizeof(UInt32)))
-        return NULL;
-    sshReader reader(this);
+        throw new std::runtime_error("Packet is missing data");
+    Types::Reader reader(*this);
     UInt32 length = reader.ReadUInt32();
     reader.SkipBytes((int)length);
     return reader.ReadBytes(mac->Length());
 }
 
-bool sshPacket::CheckMAC(UInt32 sequenceNumber) const
+bool Packet::CheckMAC(UInt32 sequenceNumber) const
 {
-    sshHMACAlgorithm *mac = (_owner->mode == Client) ? _owner->macToClient : _owner->macToServer;
+    std::shared_ptr<HMACAlgorithm> mac = (_owner.mode == Client) ? _owner.macToClient : _owner.macToServer;
     if (mac->Length() == 0)
         return true;
-    sshBlob *current = MAC();
-    sshBlob *macPacket = new sshBlob();
-    sshWriter macWriter(macPacket);
+    Blob macPacket;
+    Types::Writer macWriter(macPacket);
     macWriter.Write(sequenceNumber);
-    macPacket->Append(Value(), Length() - mac->Length());
-    sshBlob *computed = mac->Generate(macPacket);
-    macPacket->Release();
-    return current->Compare(computed);
+    macPacket.Append(Value(), Length() - mac->Length());
+    return MAC().Compare(mac->Generate(macPacket));
 }
 
-sshTransport::sshTransport()
+Transport::Transport(Maths::RandomSource& source)
+:random(source)
 {
     mode = Client;
     
-    _delegate = NULL;
-    
-    inputBuffer = new sshBlob();
-    configuration = new sshConfiguration();
-    _handler = NULL;
-    for (int i = 0; i < 256; i++)
-        _packeters[i] = NULL;
-    sessionID = NULL;
-    
-    encryptionToClient = new sshTransport_Internal::NoEncryption();
+    encryptionToClient = std::make_shared<NoEncryption>();
     encryptionToServer = encryptionToClient;
-    encryptionToClient->AddRef();
     
-    macToClient = new sshTransport_Internal::NoHmac();
+    macToClient = std::make_shared<NoHmac>();
     macToServer = macToClient;
-    macToServer->AddRef();
-    
-    _localKeyCounter = _remoteKeyCounter = 0;
 
-    kexHandler = new sshTransport_Internal::KexHandler(this, mode);
+    kexHandler = std::make_shared<Internal::KexHandler>(*this, mode);
 }
 
-sshTransport::~sshTransport()
-{
-    kexHandler->Release();
-    encryptionToClient->Release();
-    encryptionToServer->Release();
-    macToClient->Release();
-    macToServer->Release();
-    if (_handler)
-        _handler->Release();
-    if (_delegate)
-        _delegate->Release();
-    inputBuffer->Release();
-    for (int i = 0; i < 256; i++) {
-        if (_packeters[i])
-            _packeters[i]->Release();
-    }
-    if (configuration)
-        configuration->Release();
-}
-
-void sshTransport::RegisterForPackets(sshMessageHandler *handler, const Byte *number, int numberLength)
+void Transport::RegisterForPackets(MessageHandler *handler, const Byte *number, int numberLength)
 {
     UnregisterForPackets(number, numberLength);
-    for (int i = 0; i < numberLength; i++) {
+    for (int i = 0; i < numberLength; i++)
         _packeters[number[i]] = handler;
-        handler->AddRef();
-    }
 }
 
-void sshTransport::UnregisterForPackets(const Byte *number, int numberLength)
+void Transport::UnregisterForPackets(const Byte *number, int numberLength)
 {
-    for (int i = 0; i < numberLength; i++) {
-        if (_packeters[number[i]]) {
-            _packeters[number[i]]->Release();
-            _packeters[number[i]] = NULL;
-        }
-    }
+    for (int i = 0; i < numberLength; i++)
+        _packeters[number[i]] = nullptr;
 }
 
-void sshTransport::ResetAlgorithms(bool local)
+void Transport::ResetAlgorithms(bool local)
 {
     if (local == (mode == Server)) {
-        encryptionToClient->Release();
-        macToClient->Release();
-        
-        encryptionToClient = (sshEncryptionAlgorithm*)((sshConfiguration::Factory*)configuration->encryptionAlgorithms_serverToClient->ObjectFor(kexHandler->selectedEncryptionToServer))->Instantiate(this, Client);
-        macToClient = (sshHMACAlgorithm*)((sshConfiguration::Factory*)configuration->macAlgorithms_serverToClient->ObjectFor(kexHandler->selectedMACToServer))->Instantiate(this, Client);
-        
+        encryptionToClient = configuration.encryptionAlgorithms_serverToClient.at(*kexHandler->selectedEncryptionToServer)->Create(*this, Client);
+        macToClient = configuration.macAlgorithms_serverToClient.at(*kexHandler->selectedMACToServer)->Create(*this, Client);
         _localKeyCounter++;
     } else {
-        encryptionToServer->Release();
-        macToServer->Release();
-        
-        encryptionToServer = (sshEncryptionAlgorithm*)((sshConfiguration::Factory*)configuration->encryptionAlgorithms_clientToServer->ObjectFor(kexHandler->selectedEncryptionToClient))->Instantiate(this, Server);
-        macToServer = (sshHMACAlgorithm*)((sshConfiguration::Factory*)configuration->macAlgorithms_clientToServer->ObjectFor(kexHandler->selectedMACToClient))->Instantiate(this, Server);
-        
+        encryptionToServer = configuration.encryptionAlgorithms_clientToServer.at(*kexHandler->selectedEncryptionToClient)->Create(*this, Server);
+        macToServer = configuration.macAlgorithms_clientToServer.at(*kexHandler->selectedMACToClient)->Create(*this, Server);
         _remoteKeyCounter++;
     }
     if (_localKeyCounter == _remoteKeyCounter)
         KeysChanged();
 }
 
-void sshTransport::KeysChanged(void)
+void Transport::KeysChanged(void)
 {
     // We don't need to do anything here - client can hook it to detect when it can start authentication
 }
 
-void sshTransport::Start(void)
+void Transport::Start(void)
 {
     local.Reset();
     remote.Reset();
     _toSkip = 0;
     
-    inputBuffer->Reset();
-    SetHandler(new sshTransport_Internal::Initialiser(this));
+    inputBuffer.Reset();
+    _handler = std::make_shared<Internal::Initialiser>(*this);
 
-    sshBlob *sending = new sshBlob();
+    Types::Blob sending;
     // Transmit hello message lines
-    if (local.message) {
-        for (int i = 0, j = local.message->Count(); i < j; i++) {
-            sshString *string = local.message->ItemAt(i);
-            sending->Append((Byte*)string->Value(), string->Length());
-            sending->Append((Byte*)sshTransport_Internal::crlf, (int)strlen(sshTransport_Internal::crlf));
-            TestPrint('C', string);
+    if (local.message.size()) {
+        for (const std::string& line : local.message) {
+            sending.Append((Byte*)line.c_str(), (int)line.size());
+            sending.Append((Byte*)Internal::crlf, (int)strlen(Internal::crlf));
+            TestPrint('C', line);
         }
     }
     // Transmit SSH start
-    local.version = new sshString();
-    local.version->Append(sshTransport_Internal::ssh_ident, (int)strlen(sshTransport_Internal::ssh_ident));
-    sending->Append((Byte*)local.version->Value(), local.version->Length());
-    sending->Append((Byte*)sshTransport_Internal::crlf, (int)strlen(sshTransport_Internal::crlf));
+    local.version = std::string(Internal::ssh_ident, (int)strlen(Internal::ssh_ident));
+    sending.Append((Byte*)local.version.c_str(), (int)local.version.size());
+    sending.Append((Byte*)Internal::crlf, (int)strlen(Internal::crlf));
     TestPrint('C', local.version);
     // Send whole blob
-    _delegate->Send(sending->Value(), sending->Length());
-    sending->Release();
+    _delegate->Send(sending.Value(), sending.Length());
 }
 
-void sshTransport::SetHandler(sshTransport_Internal::Handler *handler)
+void Transport::SetDelegate(Delegate *delegate)
 {
-    if (_handler)
-        _handler->Release();
-    _handler = handler;
-}
-
-void sshTransport::SetDelegate(Delegate *delegate)
-{
-    if (_delegate)
-        _delegate->Release();
     _delegate = delegate;
-    if (_delegate)
-        _delegate->AddRef();
 }
 
-void sshTransport::Received(const void *data, UInt32 length)
+void Transport::Received(const void *data, UInt32 length)
 {
-    int previousLength = inputBuffer->Length();
-    inputBuffer->Append((Byte*)data, (int)length);
-    sshTransport_Internal::Handler *lastHandler;
+    int previousLength = inputBuffer.Length();
+    inputBuffer.Append((Byte*)data, (int)length);
+    std::shared_ptr<Internal::Handler> lastHandler;
     do {
         lastHandler = _handler;
         _handler->HandleMoreData(previousLength);
         previousLength = 0;
-    } while ((lastHandler != _handler) && inputBuffer->Length());
+    } while ((lastHandler != _handler) && inputBuffer.Length());
 }
 
-void sshTransport::InitialiseSSH(sshString *remoteVersion, sshNameList *message)
+void Transport::InitialiseSSH(std::string remoteVersion, const std::vector<std::string>& message)
 {
     remote.Reset();
     remote.version = remoteVersion;
-    remote.version->AddRef();
-    if (message) {
-        remote.message = message;
-        remote.message->AddRef();
-    }
+    remote.message = message;
     // Switch to binary mode - initially unencrypted
-    SetHandler(new sshTransport_Internal::BlockReceiver(this));
+    _handler = std::make_shared<Internal::BlockReceiver>(*this);
 }
 
-void sshTransport::HandlePacket(sshPacket *block)
+void Transport::HandlePacket(Packet block)
 {
     if (_toSkip) {
         _toSkip--;
         return;
     }
-    if (!block->CheckMAC(_remoteSeqCounter)) {
-        Panic(prInvalidMessage);    // TODO: Correct error
+    if (!block.CheckMAC(_remoteSeqCounter)) {
+        Panic(PanicReason::InvalidMessage);    // TODO: Correct error
         return;
     }
-    sshBlob *packet = block->Payload();
-    sshReader reader(packet);
+    Types::Blob packet = block.Payload();
+    Types::Reader reader(packet);
     Byte message = reader.ReadByte();
-    sshMessageHandler *handler = _packeters[message];
-    DEBUG_LOG_TRANSFER(("S> message %i: %i bytes (%i total): %s\n", message, packet->Length(), block->Length(), handler?"handled":"unclaimed"));
+    MessageHandler *handler = _packeters[message];
+    DEBUG_LOG_TRANSFER(("S> message %i: %i bytes (%i total): %s\n", message, packet.Length(), block.Length(), handler?"handled":"unclaimed"));
+#ifdef DEBUG_LOG_CONTENT
+    block.DebugDump();
+#endif
     if (handler) {
         handler->HandlePayload(packet);
     } else {
         printf("Unimplemented message %i:\n", message);
-        packet->DebugDump();
-        sshBlob *error = new sshBlob();
-        sshWriter writer(error);
-        writer.Write(Byte(SSH_MSG_UNIMPLEMENTED));
+        packet.DebugDump();
+        Types::Blob error;
+        Types::Writer writer(error);
+        writer.Write(UNIMPLEMENTED);
         writer.Write(_remoteSeqCounter);
         Send(error);
-        error->Release();
     }
     _remoteSeqCounter++;
 }
 
-void sshTransport::Send(sshBlob *payload)
+void Transport::Send(Types::Blob payload)
 {
-    sshEncryptionAlgorithm *encrypter = (mode == Client) ? encryptionToServer : encryptionToClient;
+    std::shared_ptr<EncryptionAlgorithm> encrypter = (mode == Client) ? encryptionToServer : encryptionToClient;
     int blockSize = encrypter->BlockSize();
 
     // TODO: compression (payload = Compress(payload))
     
     int minimumPadding = 4;    // Minimum 4 padding
-    int minimumLength = /*packet_length*/ 4 + /*padding_length*/ 1 + payload->Length() + minimumPadding;
+    int minimumLength = /*packet_length*/ 4 + /*padding_length*/ 1 + payload.Length() + minimumPadding;
     minimumPadding += blockSize - (minimumLength % blockSize);
     int padding = minimumPadding;
     
-    sshBlob *packet = new sshBlob();
-    sshWriter writer(packet);
-    writer.Write(UInt32(1 + payload->Length() + padding));
+    Types::Blob packet;
+    Types::Writer writer(packet);
+    writer.Write(UInt32(1 + payload.Length() + padding));
     writer.Write(Byte(padding));
     writer.Write(payload);
     for (int i = padding; i != 0;) {
-        UInt32 aRandom = sessionID ? random->Random() : 0;
+        UInt32 aRandom = sessionID ? random.Random() : 0;
         if (i > 4) {
             writer.Write(UInt32(aRandom));
             i -= 4;
@@ -822,124 +686,112 @@ void sshTransport::Send(sshBlob *payload)
         }
     }
 
-    DEBUG_LOG_TRANSFER(("C> message %i: %i bytes (%i total)\n", payload->Value()[0], payload->Length(), packet->Length() + ((mode == Client) ? macToServer : macToClient)->Length()));
+    DEBUG_LOG_TRANSFER(("C> message %i: %i bytes (%i total)\n", payload.Value()[0], payload.Length(), packet.Length() + ((mode == Client) ? macToServer : macToClient)->Length()));
+#ifdef DEBUG_LOG_CONTENT
+    payload.DebugDump();
+#endif
     
     // Encrypt the packet (a block at a time, as per the encryption algorithm) and transmit it
-    sshBlob *chunk = new sshBlob();
-    for (int i = 0; i < packet->Length(); i += blockSize) {
-        chunk->Reset();
-        chunk->Append(packet->Value() + i, blockSize);
-        sshBlob *result = encrypter->Encrypt(chunk);
-        _delegate->Send(result->Value(), result->Length());
+    for (int i = 0; i < packet.Length(); i += blockSize) {
+        Types::Blob result = encrypter->Encrypt(Types::Blob(packet.Value() + i, blockSize));
+        _delegate->Send(result.Value(), result.Length());
     }
-    chunk->Release();
 
     // Generate the MAC
-    sshBlob *macPacket = new sshBlob();
-    sshWriter macWriter(macPacket);
+    Types::Blob macPacket;
+    Types::Writer macWriter(macPacket);
     macWriter.Write(_localSeqCounter);
     macWriter.Write(packet);
-    packet->Release();
-    sshBlob *macData = ((mode == Client) ? macToServer : macToClient)->Generate(macPacket);
-    macPacket->Release();
-    _delegate->Send(macData->Value(), macData->Length());
+    Types::Blob macData = ((mode == Client) ? macToServer : macToClient)->Generate(macPacket);
+    _delegate->Send(macData.Value(), macData.Length());
 
     _localSeqCounter++;
 }
 
-void sshTransport::Panic(PanicReason r)
+void Transport::Panic(PanicReason r)
 {
     _delegate->Failed(r);
 }
 
-void sshTransport::SkipPacket(void)
+void Transport::SkipPacket(void)
 {
     _toSkip++;
 }
 
-sshKeyExchanger::sshKeyExchanger(sshTransport *owner, TransportMode mode)
+KeyExchanger::KeyExchanger(Transport& owner, Mode mode, const Hash::Type &hash)
+:_owner(owner), _mode(mode), _hash(hash)
 {
-    _owner = owner;
-    _mode = mode;
 }
 
-static sshBlob* MakeSameKey(HashType *hash, BigNumber K, sshString *H, Byte c, sshString *sessionID)
+static Types::Blob MakeSameKey(const Hash::Type& hash, Maths::BigNumber K, Types::Blob H, Byte c, Types::Blob sessionID)
 {
-    sshBlob *blob = new sshBlob();
-    sshWriter writer(blob);
+    Types::Blob blob;
+    Types::Writer writer(blob);
     writer.Write(K);
-    blob->Append((Byte*)H->Value(), H->Length());
+    blob.Append((Byte*)H.Value(), H.Length());
     writer.Write(c);
-    blob->Append((Byte*)sessionID->Value(), sessionID->Length());
-    sshBlob *result = hash->Compute(blob);
-    blob->Release();
-    result->AddRef();   // For convenience of caller
-    return result;
+    blob.Append((Byte*)sessionID.Value(), sessionID.Length());
+    return *hash.Compute(blob);
 }
 
-void sshKeyExchanger::GenerateKeys(void)
+void KeyExchanger::GenerateKeys(void)
 {
     // Compute the new keys
-    initialisationVectorC2S = MakeSameKey(hash, key, exchangeHash, 'A', _owner->sessionID);
-    initialisationVectorS2C = MakeSameKey(hash, key, exchangeHash, 'B', _owner->sessionID);
-    encryptionKeyC2S = MakeSameKey(hash, key, exchangeHash, 'C', _owner->sessionID);
-    encryptionKeyS2C = MakeSameKey(hash, key, exchangeHash, 'D', _owner->sessionID);
-    integrityKeyC2S = MakeSameKey(hash, key, exchangeHash, 'E', _owner->sessionID);
-    integrityKeyS2C = MakeSameKey(hash, key, exchangeHash, 'F', _owner->sessionID);
+    initialisationVectorC2S = MakeSameKey(_hash, key, exchangeHash, 'A', *_owner.sessionID);
+    initialisationVectorS2C = MakeSameKey(_hash, key, exchangeHash, 'B', *_owner.sessionID);
+    encryptionKeyC2S = MakeSameKey(_hash, key, exchangeHash, 'C', *_owner.sessionID);
+    encryptionKeyS2C = MakeSameKey(_hash, key, exchangeHash, 'D', *_owner.sessionID);
+    integrityKeyC2S = MakeSameKey(_hash, key, exchangeHash, 'E', *_owner.sessionID);
+    integrityKeyS2C = MakeSameKey(_hash, key, exchangeHash, 'F', *_owner.sessionID);
     
 #ifdef DEBUG_KEX
     printf("*** Generating keys ***\n");
-    printf("A:\n"); initialisationVectorC2S->DebugDump();
-    printf("B:\n"); initialisationVectorS2C->DebugDump();
-    printf("C:\n"); encryptionKeyC2S->DebugDump();
-    printf("D:\n"); encryptionKeyS2C->DebugDump();
-    printf("E:\n"); integrityKeyC2S->DebugDump();
-    printf("F:\n"); integrityKeyS2C->DebugDump();
+    printf("A:\n"); initialisationVectorC2S.DebugDump();
+    printf("B:\n"); initialisationVectorS2C.DebugDump();
+    printf("C:\n"); encryptionKeyC2S.DebugDump();
+    printf("D:\n"); encryptionKeyS2C.DebugDump();
+    printf("E:\n"); integrityKeyC2S.DebugDump();
+    printf("F:\n"); integrityKeyS2C.DebugDump();
 #endif
     
     // Now we have keys, switch!
-    sshBlob *message = new sshBlob();
-    sshWriter writer(message);
-    writer.Write(Byte(SSH_MSG_NEWKEYS));
-    _owner->Send(message);
-    message->Release();
+    Types::Blob message;
+    Types::Writer writer(message);
+    writer.Write(NEWKEYS);
+    _owner.Send(message);
 
     // After that message is sent, all outgoing messages should be using the new algorithms, so switch now
-    _owner->ResetAlgorithms(true);
-    _owner->KeysChanged();  // TODO: make this only happen when ResetAlgorithms(true) and (false) has been called
+    _owner.ResetAlgorithms(true);
+    _owner.KeysChanged();  // TODO: make this only happen when ResetAlgorithms(true) and (false) has been called
 }
 
-sshBlob* sshKeyExchanger::ExtendKey(sshBlob *baseKey, UInt32 requiredLength)
+Types::Blob KeyExchanger::ExtendKey(Types::Blob baseKey, UInt32 requiredLength)
 {
     // Check K1 (which we already made, and is the input)
-    if (requiredLength == baseKey->Length())
+    if (requiredLength == baseKey.Length())
         return baseKey;
     
     // Shrink instead?
-    if (requiredLength < baseKey->Length()) {
-        sshBlob *result = new sshBlob();
-        result->Append(baseKey->Value(), requiredLength);
-        result->Autorelease();
-        return result;
-    }
+    if (requiredLength < baseKey.Length())
+        return Types::Blob(baseKey.Value(), requiredLength);
     
     // Construct K || H || K1 (which is K2)
-    sshBlob *extra = new sshBlob();
-    sshWriter writer(extra);
+    Types::Blob extra;
+    Types::Writer writer(extra);
     writer.Write(key);  // K
     writer.Write(exchangeHash);  // H
     writer.Write(baseKey);  // K1
 
-    sshBlob *result = new sshBlob();
-    sshWriter resultWriter(result);
+    Types::Blob result;
+    Types::Writer resultWriter(result);
     resultWriter.Write(baseKey);    // K1
     do {
-        sshBlob *Kn = hash->Compute(extra);
+        Types::Blob Kn = *_hash.Compute(extra);
         resultWriter.Write(Kn);
         writer.Write(Kn);
-    } while (result->Length() < requiredLength);
+    } while (result.Length() < requiredLength);
     
-    extra->Release();
-    result->Autorelease();
     return result;
 }
+
+} // namespace minissh::Transport
