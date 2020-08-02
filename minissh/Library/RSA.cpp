@@ -9,9 +9,156 @@
 #include "RSA.h"
 #include "Maths.h"
 #include "Hash.h"
+#include "DerFile.h"
 
 namespace minissh::RSA {
     
+namespace {
+    
+class KeyBaseReader : public Files::DER::Reader::Callback
+{
+protected:
+    void Failed(void)
+    {
+        throw new std::runtime_error("Unexpected DER type");
+    }
+    void Invalid(void)
+    {
+        throw new std::runtime_error("File invalid; exponent/coefficient mismatch");
+    }
+private:
+    int _start, _end, _cur;
+public:
+    KeyBaseReader()
+    :_start(0), _end(0), _cur(0)
+    {
+    }
+    
+    void StartSequence(void) override
+    {
+        _start++;
+    }
+    void EndSequence(void) override
+    {
+        _end++;
+    }
+    void StartSet(void) override {Failed();}
+    void EndSet(void) override {Failed();}
+    void Unknown(Byte type, Types::Blob data) override {Failed();}
+    void ReadNull(void) override {Failed();}
+    void ReadObjectIdentifier(const std::vector<UInt32>& id) override {Failed();}
+    void ReadInteger(Maths::BigNumber i) override
+    {
+        if ((_start == 1) && (_end == 0)) {
+            GotNumber(_cur, i);
+            _cur++;
+        } else {
+            Failed();
+        }
+    }
+    virtual void GotNumber(int index, Maths::BigNumber value) = 0;
+};
+
+class KeyPublicReader : public KeyBaseReader
+{
+private:
+    Maths::BigNumber *_numbers[2];
+public:
+    KeyPublicReader(Maths::BigNumber& n, Maths::BigNumber& e)
+    :_numbers{&n, &e}
+    {
+    }
+    
+    void GotNumber(int index, Maths::BigNumber value) override
+    {
+        switch (index) {
+            default:
+                *_numbers[index] = value;
+                break;
+            case 2:
+                Failed();
+                break;
+        }
+    }
+};
+
+class KeySetReader : public KeyBaseReader
+{
+private:
+    static constexpr int VERSION = 0;
+    static constexpr int MODULUS = 1;
+    static constexpr int EXPONENT_PUBLIC = 2;
+    static constexpr int EXPONENT_PRIVATE = 3;
+    static constexpr int PRIME1 = 4;
+    static constexpr int PRIME2 = 5;
+    static constexpr int EXPONENT1 = 6;
+    static constexpr int EXPONENT2 = 7;
+    static constexpr int COEFFICIENT = 8;
+    
+    Maths::BigNumber _version;
+    Maths::BigNumber *_numbers[6];
+public:
+    KeySetReader(Maths::BigNumber& n, Maths::BigNumber& e, Maths::BigNumber& d, Maths::BigNumber& p, Maths::BigNumber& q)
+    :_numbers{&_version, &n, &e, &d, &p, &q}
+    {
+    }
+    
+    void GotNumber(int index, Maths::BigNumber value) override
+    {
+        Maths::BigNumber temp;
+        switch (index) {
+            default:
+                if ((index == VERSION) && (value != 0))
+                    Invalid();
+                *_numbers[index] = value;
+                break;
+            case EXPONENT1:
+                temp = _numbers[EXPONENT_PRIVATE]->PowerMod(1, *_numbers[PRIME1] - 1);
+                if (value != temp)
+                    Invalid();
+                break;
+            case EXPONENT2:
+                if (value != _numbers[EXPONENT_PRIVATE]->PowerMod(1, *_numbers[PRIME2] - 1))
+                    Invalid();
+                break;
+            case COEFFICIENT:
+                if (value != _numbers[PRIME2]->ModularInverse(*_numbers[PRIME1]))
+                    Invalid();
+                break;
+            case 9:
+                Failed();
+                break;
+        }
+    }
+};
+
+constexpr const char* TEXT_SSH_RSA = "ssh-rsa";
+constexpr const char* TEXT_DER_RSA_PUBLIC = "RSA PUBLIC KEY";
+constexpr const char* TEXT_DER_RSA_PRIVATE = "RSA PRIVATE KEY";
+    
+Files::Format::KeyFileLoader privateDER(
+    TEXT_DER_RSA_PRIVATE, Files::Format::FileType::DER,
+    [](Types::Blob load){
+        return std::make_shared<KeySet>(load, Files::Format::FileType::DER);
+    }
+);
+
+Files::Format::KeyFileLoader publicSSH(
+    TEXT_SSH_RSA, Files::Format::FileType::SSH,
+    [](Types::Blob load){
+        return std::make_shared<KeyPublic>(load, Files::Format::FileType::SSH);
+    }
+);
+
+Files::Format::KeyFileLoader publicDER(
+    TEXT_DER_RSA_PUBLIC, Files::Format::FileType::DER,
+    [](Types::Blob load){
+        return std::make_shared<KeyPublic>(load, Files::Format::FileType::DER);
+    }
+);
+
+} // namespace
+
 Key::Key(Maths::BigNumber n, Maths::BigNumber e)
 {
     this->n = n;
@@ -61,45 +208,137 @@ Maths::BigNumber RSAVP1(const Key& key, const Maths::BigNumber& s)
     return m;
 }
 
-static Maths::BigNumber ModularInverse(Maths::BigNumber a, Maths::BigNumber n)
-{
-    Maths::BigNumber t = 0; Maths::BigNumber newt = 1;
-    Maths::BigNumber r = n; Maths::BigNumber newr = a;
-    while (newr != 0) {
-        Maths::BigNumber quotient = r / newr;
-        Maths::BigNumber t2 = newt; Maths::BigNumber newt2 = t - quotient * newt;
-        t = t2; newt = newt2;
-        Maths::BigNumber r2 = newr; Maths::BigNumber newr2 = r - quotient * newr;
-        r = r2; newr = newr2;
-    }
-    if (r > 1)
-        throw "a is not reversible";
-    if (t < 0)
-        t += n;
-    return t;
-}
-
 KeySet::KeySet(Maths::RandomSource& random, int bits)
 {
-    Maths::BigNumber p = Maths::BigNumber(bits, random, 100);
-    Maths::BigNumber q = Maths::BigNumber(bits, random, 100);
-    Maths::BigNumber n = p * q;
-    Maths::BigNumber p1 = p - 1;
-    Maths::BigNumber q1 = q - 1;
-    Maths::BigNumber on = p1 * q1;
-    Maths::BigNumber e = 65537;
+    _p = Maths::BigNumber(bits, random, 100);
+    _q = Maths::BigNumber(bits, random, 100);
+    _n = _p * _q;
+    _e = 65537;
+    Maths::BigNumber on = (_p - 1) * (_q - 1);
     while (true) {
-        if ((on % e) != 0)
+        if ((on % _e) != 0)
             break;
         do {
-            e = Maths::BigNumber(on.BitLength(), random, 100);
-        } while (e >= on);
+            _e = Maths::BigNumber(on.BitLength(), random, 100);
+        } while (_e >= on);
     }
-    Maths::BigNumber d = ModularInverse(e, on);
-    publicKey = new Key(n, e);
-    privateKey = new Key(n, d);
+    _d = _e.ModularInverse(on);
+}
+    
+KeyPublic::KeyPublic(Types::Blob load, Files::Format::FileType type)
+{
+    switch (type) {
+        case Files::Format::FileType::SSH:
+        {
+            Types::Reader reader(load);
+            if (reader.ReadString().AsString().compare(TEXT_SSH_RSA) != 0)
+                throw new std::runtime_error("Not an SSH RSA public key");
+            _e = reader.ReadMPInt();
+            _n = reader.ReadMPInt();
+            if (reader.Remaining())
+                throw new std::runtime_error("Extra data found after SSH key data");
+        }
+            break;
+        case Files::Format::FileType::DER:
+        {
+            KeyPublicReader reader(_n, _e);
+            Files::DER::Reader::Load(load, reader);
+        }
+            break;
+        default:
+            throw new std::invalid_argument("Unsupported file type");
+    }
 }
 
+Types::Blob KeyPublic::SavePublic(Files::Format::FileType type)
+{
+    switch (type) {
+        case Files::Format::FileType::SSH:
+        {
+            // SSH file format:
+            // string "ssh-rsa"
+            // mpint  e (exponent)
+            // mpint  n (modulus)
+            Types::Blob result;
+            Types::Writer writer(result);
+            writer.WriteString(TEXT_SSH_RSA);
+            writer.Write(_e);
+            writer.Write(_n);
+            return result;
+        }
+        case Files::Format::FileType::DER:
+        {
+            // DER file format:
+            // RSAPublicKey ::= SEQUENCE {
+            //     modulus           INTEGER,  -- n
+            //     publicExponent    INTEGER   -- e
+            // }
+            Files::DER::Writer::Sequence sequence;
+            sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_n));
+            sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_e));
+            return sequence.Save();
+        }
+        default:
+            throw new std::invalid_argument("Unsupported file type");
+    };
+}
+
+std::string KeyPublic::GetKeyName(Files::Format::FileType type, bool isPrivate)
+{
+    if (!isPrivate) {
+        if (type == Files::Format::FileType::SSH)
+            return TEXT_SSH_RSA;
+        if (type == Files::Format::FileType::DER)
+            return TEXT_DER_RSA_PUBLIC;
+    }
+    return KeyFile::GetKeyName(type, isPrivate);
+}
+
+KeySet::KeySet(Types::Blob load, Files::Format::FileType type)
+{
+    if (type != Files::Format::FileType::DER)
+        throw new std::invalid_argument("Unsupported file type");
+    KeySetReader reader(_n, _e, _d, _p, _q);
+    Files::DER::Reader::Load(load, reader);
+}
+    
+Types::Blob KeySet::SavePrivate(Files::Format::FileType type)
+{
+    if (type != Files::Format::FileType::DER)
+        throw new std::invalid_argument("Unsupported file type");
+    // DER File Format
+    // RSAPrivateKey ::= SEQUENCE {
+    //     version           Version,
+    //     modulus           INTEGER,  -- n
+    //     publicExponent    INTEGER,  -- e
+    //     privateExponent   INTEGER,  -- d
+    //     prime1            INTEGER,  -- p
+    //     prime2            INTEGER,  -- q
+    //     exponent1         INTEGER,  -- d mod (p-1)
+    //     exponent2         INTEGER,  -- d mod (q-1)
+    //     coefficient       INTEGER,  -- (inverse of q) mod p
+    //     otherPrimeInfos   OtherPrimeInfos OPTIONAL
+    // }
+    Files::DER::Writer::Sequence sequence;
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(0));
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_n));
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_e));
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_d));
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_p));
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_q));
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_d.PowerMod(1, _p - 1)));
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_d.PowerMod(1, _q - 1)));
+    sequence.components.push_back(std::make_shared<Files::DER::Writer::Integer>(_q.ModularInverse(_p)));
+    return sequence.Save();
+}
+
+std::string KeySet::GetKeyName(Files::Format::FileType type, bool isPrivate)
+{
+    if ((type == Files::Format::FileType::DER) && isPrivate)
+        return TEXT_DER_RSA_PRIVATE;
+    return KeyPublic::GetKeyName(type, isPrivate);
+}
+    
 // prefixes
 //    MD2:     (0x)30 20 30 0c 06 08 2a 86 48 86 f7 0d 02 02 05 00 04 10 || H.
 //    MD5:     (0x)30 20 30 0c 06 08 2a 86 48 86 f7 0d 02 05 05 00 04 10 || H.
@@ -107,6 +346,7 @@ KeySet::KeySet(Maths::RandomSource& random, int bits)
 //    SHA-256: (0x)30 31 30 0d 06 09 60 86 48 01 65 03 04 02 01 05 00 04 20 || H.
 //    SHA-384: (0x)30 41 30 0d 06 09 60 86 48 01 65 03 04 02 02 05 00 04 30 || H.
 //    SHA-512: (0x)30 51 30 0d 06 09 60 86 48 01 65 03 04 02 03 05 00 04 40 || H.
+// TODO: Maybe replace these DER prefixes (which are dotted around the code) with calls to the new DER code
 
 // 9.2 EMSA-PKCS1-v1_5
 std::optional<Types::Blob> EMSA_PKCS1_V1_5(Types::Blob M, int emLen, const Hash::Type& hash)
@@ -118,7 +358,7 @@ std::optional<Types::Blob> EMSA_PKCS1_V1_5(Types::Blob M, int emLen, const Hash:
     //    too long" and stop.
     std::optional<Types::Blob> H = hash.Compute(M);
     if (!H)
-        return {};
+        throw new Exception("No result from hash");
 
     // 2. Encode the algorithm ID for the hash function and the hash value
     //    into an ASN.1 value of type DigestInfo (see Appendix A.2.4) with
@@ -141,7 +381,7 @@ std::optional<Types::Blob> EMSA_PKCS1_V1_5(Types::Blob M, int emLen, const Hash:
     // 3. If emLen < tLen + 11, output "intended encoded message length too
     //    short" and stop.
     if (emLen < tLen + 11)
-        return {};
+        throw new Exception("Intended encoded message length too short");
 
     // 4. Generate an octet string PS consisting of emLen - tLen - 3 octets
     //    with hexadecimal value 0xff.  The length of PS will be at least 8
@@ -206,8 +446,8 @@ std::optional<Types::Blob> SSA_PKCS1_V1_5::Sign(const Key& privateKey, Types::Bl
     //    too short" and stop.
     std::optional<Types::Blob> EM = EMSA_PKCS1_V1_5(M, k, hash);
     if (!EM)
-        return {};
-    
+        throw new Exception("No result from hash");
+
     // 2. RSA signature:
     //  a. Convert the encoded message EM to an integer message
     //     representative m (see Section 4.2):
@@ -285,7 +525,7 @@ bool SSA_PKCS1_V1_5::Verify(const Key& publicKey, Types::Blob M, Types::Blob S, 
     //    too short" and stop.
     std::optional<Types::Blob> EM_ = EMSA_PKCS1_V1_5(M, k, hash);
     if (!EM_)
-        throw new std::runtime_error("Failed to encode");
+        throw new Exception("Failed to encode");
     
     // 4. Compare the encoded message EM and the second encoded message EM'.
     //    If they are the same, output "valid signature"; otherwise, output

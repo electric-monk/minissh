@@ -11,26 +11,62 @@
 #include <memory>
 #include "Types.h"
 #include "Hash.h"
+#include "KeyFile.h"
 
 class RandomSource;
 
 namespace minissh::RSA {
+    
+struct Exception : public std::runtime_error
+{
+    Exception(const char* const& message)
+    :runtime_error(message)
+    {}
+};
     
 class Key
 {
 public:
     Key(Maths::BigNumber n, Maths::BigNumber e);
 
-    Maths::BigNumber n;
-    Maths::BigNumber e;
+    Maths::BigNumber n; // Modulus
+    Maths::BigNumber e; // Exponent
 };
 
-class KeySet
+class KeyPublic : public Files::Format::KeyFile
+{
+public:
+    KeyPublic(Types::Blob load, Files::Format::FileType type);
+    
+    Key PublicKey(void) const { return Key(_n, _e); }
+
+    Types::Blob SavePublic(Files::Format::FileType type) override;
+    std::string GetKeyName(Files::Format::FileType type, bool isPrivate) override;
+
+protected:
+    KeyPublic(){}
+
+    Maths::BigNumber _n; // Modulus
+    Maths::BigNumber _e; // Public Exponent
+};
+    
+class KeySet : public KeyPublic
 {
 public:
     KeySet(Maths::RandomSource& random, int bits);
+    KeySet(Types::Blob load, Files::Format::FileType type);
+
+    Key PrivateKey(void) const { return Key(_n, _d); }
+
+    Types::Blob SavePrivate(Files::Format::FileType type) override;
+    std::string GetKeyName(Files::Format::FileType type, bool isPrivate) override;
+
+private:
+    Maths::BigNumber _d; // Private Exponent
+    // Unused, but stored on disk, so we keep it around
+    Maths::BigNumber _p; // prime1
+    Maths::BigNumber _q; // prime2
     
-    Key *publicKey, *privateKey;
 };
 
 namespace SSA_PKCS1_V1_5 {

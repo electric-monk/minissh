@@ -101,31 +101,9 @@ namespace Internal {
         Transport &_owner;
     };
     
-    constexpr char crlf[] = {13, 10, 0};
-    const char lf[] = {10, 0};
     const char* ssh = "SSH-";
     const char* ssh_ident = "SSH-2.0-miceSSH_1.0";
 
-    static int MatchCharacters(const Byte *buffer, int bufferLength, const char *match, int matchLength)
-    {
-        int index = 0;
-        int found = -1;
-        int matched = 0;
-        while (index < bufferLength) {
-            if (buffer[index] == match[matched]) {
-                if (matched == 0)
-                    found = index;
-                matched++;
-                if (matched == matchLength)
-                    return found;
-            } else {
-                matched = 0;
-            }
-            index++;
-        }
-        return -1;
-    }
-    
     static bool MatchStringStart(const std::string& first, const char *second, int secondLength)
     {
         const char *bytes = first.c_str();
@@ -137,29 +115,6 @@ namespace Internal {
                 return false;
         }
         return true;
-    }
-    
-    static std::optional<std::string> FindLine(Types::Blob& blob)
-    {
-        // Get raw buffer
-        const Byte *bytes = blob.Value();
-        int length = blob.Length();
-        // Find CR-LF
-        int tostrip = (int)strlen(crlf);
-        int location = MatchCharacters(bytes, length, crlf, tostrip);
-        if (location == -1) {
-            // Turns out sometimes OpenSSH breaks the standard and only sends LF
-            tostrip = (int)strlen(lf);
-            location = MatchCharacters(bytes, length, lf, tostrip);
-        }
-        if (location == -1)
-            return {};
-        // Make a string
-        std::string result(reinterpret_cast<const char*>(bytes), location);
-        // Remove used data
-        blob.Strip(0, location + tostrip);
-        // Done
-        return location > 0 ? std::optional<std::reference_wrapper<std::string>>{result} : std::nullopt;
     }
     
     class Initialiser : public Handler
@@ -175,7 +130,7 @@ namespace Internal {
         void HandleMoreData(UInt32 previousLength)
         {
             while (true) {
-                std::optional<std::string> line = FindLine(_owner.inputBuffer);
+                std::optional<std::string> line = _owner.inputBuffer.FindLine();
                 if (!line)
                     return;
                 TestPrint('S', *line);
@@ -571,6 +526,7 @@ void Transport::KeysChanged(void)
 
 void Transport::Start(void)
 {
+    constexpr Byte crlf[] = {13, 10};
     local.Reset();
     remote.Reset();
     _toSkip = 0;
@@ -583,14 +539,14 @@ void Transport::Start(void)
     if (local.message.size()) {
         for (const std::string& line : local.message) {
             sending.Append((Byte*)line.c_str(), (int)line.size());
-            sending.Append((Byte*)Internal::crlf, (int)strlen(Internal::crlf));
+            sending.Append(crlf, (int)sizeof(crlf));
             TestPrint('C', line);
         }
     }
     // Transmit SSH start
     local.version = std::string(Internal::ssh_ident, (int)strlen(Internal::ssh_ident));
     sending.Append((Byte*)local.version.c_str(), (int)local.version.size());
-    sending.Append((Byte*)Internal::crlf, (int)strlen(Internal::crlf));
+    sending.Append(crlf, (int)sizeof(crlf));
     TestPrint('C', local.version);
     // Send whole blob
     _delegate->Send(sending.Value(), sending.Length());

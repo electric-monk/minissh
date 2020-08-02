@@ -37,6 +37,12 @@
 		3B7D1BD21C437E2A00C380C9 /* Types.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B7D1BD01C437E2A00C380C9 /* Types.cpp */; };
 		3B7D1BDB1C438B4100C380C9 /* Transport.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B7D1BD91C438B4100C380C9 /* Transport.cpp */; };
 		3B7D1BDC1C438B4100C380C9 /* Transport.h in Headers */ = {isa = PBXBuildFile; fileRef = 3B7D1BDA1C438B4100C380C9 /* Transport.h */; };
+		3BECB18924989755004798E5 /* Base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BECB18724989755004798E5 /* Base64.cpp */; };
+		3BECB18A24989755004798E5 /* Base64.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BECB18824989755004798E5 /* Base64.h */; };
+		3BECB18D2498C8BA004798E5 /* DerFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BECB18B2498C8BA004798E5 /* DerFile.cpp */; };
+		3BECB18E2498C8BA004798E5 /* DerFile.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BECB18C2498C8BA004798E5 /* DerFile.h */; };
+		3BECB19124A0993D004798E5 /* KeyFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BECB18F24A0993D004798E5 /* KeyFile.cpp */; };
+		3BECB19224A0993D004798E5 /* KeyFile.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BECB19024A0993D004798E5 /* KeyFile.h */; };
 		3BFDC1401C6F34F900024654 /* Client.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BFDC13E1C6F34F900024654 /* Client.cpp */; };
 		3BFDC1411C6F34F900024654 /* Client.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BFDC13F1C6F34F900024654 /* Client.h */; };
 		3BFDC1441C73216F00024654 /* SshAuth.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BFDC1421C73216F00024654 /* SshAuth.cpp */; };
@@ -108,6 +114,12 @@
 		3B7D1BD91C438B4100C380C9 /* Transport.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Transport.cpp; path = minissh/Library/Transport.cpp; sourceTree = "<group>"; };
 		3B7D1BDA1C438B4100C380C9 /* Transport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Transport.h; path = minissh/Library/Transport.h; sourceTree = "<group>"; };
 		3BECB1862494B320004798E5 /* BaseTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = BaseTypes.h; path = minissh/Library/BaseTypes.h; sourceTree = "<group>"; };
+		3BECB18724989755004798E5 /* Base64.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Base64.cpp; path = minissh/Library/Base64.cpp; sourceTree = "<group>"; };
+		3BECB18824989755004798E5 /* Base64.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Base64.h; path = minissh/Library/Base64.h; sourceTree = "<group>"; };
+		3BECB18B2498C8BA004798E5 /* DerFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DerFile.cpp; path = minissh/Library/DerFile.cpp; sourceTree = "<group>"; };
+		3BECB18C2498C8BA004798E5 /* DerFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DerFile.h; path = minissh/Library/DerFile.h; sourceTree = "<group>"; };
+		3BECB18F24A0993D004798E5 /* KeyFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KeyFile.cpp; path = minissh/Library/KeyFile.cpp; sourceTree = "<group>"; };
+		3BECB19024A0993D004798E5 /* KeyFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = KeyFile.h; path = minissh/Library/KeyFile.h; sourceTree = "<group>"; };
 		3BFDC13E1C6F34F900024654 /* Client.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Client.cpp; path = minissh/Library/Client.cpp; sourceTree = "<group>"; };
 		3BFDC13F1C6F34F900024654 /* Client.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Client.h; path = minissh/Library/Client.h; sourceTree = "<group>"; };
 		3BFDC1421C73216F00024654 /* SshAuth.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SshAuth.cpp; path = minissh/Library/SshAuth.cpp; sourceTree = "<group>"; };
@@ -209,6 +221,12 @@
 				3BFDC1471C75CB7A00024654 /* Connection.h */,
 				3BFDC14E1C78805900024654 /* Session.cpp */,
 				3BFDC14F1C78805900024654 /* Session.h */,
+				3BECB18724989755004798E5 /* Base64.cpp */,
+				3BECB18824989755004798E5 /* Base64.h */,
+				3BECB18B2498C8BA004798E5 /* DerFile.cpp */,
+				3BECB18C2498C8BA004798E5 /* DerFile.h */,
+				3BECB18F24A0993D004798E5 /* KeyFile.cpp */,
+				3BECB19024A0993D004798E5 /* KeyFile.h */,
 			);
 			name = Library;
 			sourceTree = "<group>";
@@ -221,17 +239,20 @@
 			buildActionMask = 2147483647;
 			files = (
 				3B1279591C6B18BA00BDBB06 /* Hash.h in Headers */,
+				3BECB18A24989755004798E5 /* Base64.h in Headers */,
 				3B40C5331C6855CC004DA8E5 /* AES.h in Headers */,
 				3BFDC1491C75CB7A00024654 /* Connection.h in Headers */,
 				3B40C5371C69EEC8004DA8E5 /* SSH_AES.h in Headers */,
 				3B40C5121C4F69E3004DA8E5 /* Maths.h in Headers */,
 				3BFDC1511C78805900024654 /* Session.h in Headers */,
 				3B40C5201C5F52B7004DA8E5 /* sha1.h in Headers */,
+				3BECB18E2498C8BA004798E5 /* DerFile.h in Headers */,
 				3BFDC1451C73216F00024654 /* SshAuth.h in Headers */,
 				3B40C5281C61F9D8004DA8E5 /* SSH_RSA.h in Headers */,
 				3B7D1BDC1C438B4100C380C9 /* Transport.h in Headers */,
 				3B40C5241C60A9EF004DA8E5 /* RSA.h in Headers */,
 				3B40C51C1C5E0861004DA8E5 /* DiffieHellman.h in Headers */,
+				3BECB19224A0993D004798E5 /* KeyFile.h in Headers */,
 				3BFDC1411C6F34F900024654 /* Client.h in Headers */,
 				3B40C5161C55CF0E004DA8E5 /* BlumBlumShub.h in Headers */,
 				3B40C52F1C68500D004DA8E5 /* Operations.h in Headers */,
@@ -326,10 +347,13 @@
 				3B40C51B1C5E0861004DA8E5 /* DiffieHellman.cpp in Sources */,
 				3B40C51F1C5F52B7004DA8E5 /* sha1.cpp in Sources */,
 				3B7D1BDB1C438B4100C380C9 /* Transport.cpp in Sources */,
+				3BECB19124A0993D004798E5 /* KeyFile.cpp in Sources */,
 				3BFDC1441C73216F00024654 /* SshAuth.cpp in Sources */,
 				3B7D1BD21C437E2A00C380C9 /* Types.cpp in Sources */,
 				3B1279581C6B18BA00BDBB06 /* Hash.cpp in Sources */,
+				3BECB18924989755004798E5 /* Base64.cpp in Sources */,
 				3B40C5271C61F9D8004DA8E5 /* SSH_RSA.cpp in Sources */,
+				3BECB18D2498C8BA004798E5 /* DerFile.cpp in Sources */,
 				3BFDC1481C75CB7A00024654 /* Connection.cpp in Sources */,
 				3B40C5321C6855CC004DA8E5 /* AES.cpp in Sources */,
 				3BFDC1501C78805900024654 /* Session.cpp in Sources */,

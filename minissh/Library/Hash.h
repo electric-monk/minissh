@@ -13,6 +13,20 @@
 
 namespace minissh::Hash {
 
+struct Exception : public std::runtime_error
+{
+    Exception(const char* const& message)
+    :runtime_error(message)
+    {}
+};
+    
+struct MessageTooLong : public Exception
+{
+    MessageTooLong()
+    :Exception("Hash input too long")
+    {}
+};
+    
 class Type
 {
 public:

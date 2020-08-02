@@ -14,6 +14,38 @@
 
 namespace minissh::Maths {
 
+namespace {
+    
+BigNumber EuclideanGCD(const BigNumber& a, const BigNumber& b, BigNumber& x, BigNumber& y)
+{
+    if (a == 0) {
+        x = 0;
+        y = 1;
+        return b;
+    }
+    BigNumber x1, y1;
+    BigNumber gcd = EuclideanGCD(b % a, a, x1, y1);
+    x = y1 - (b / a ) * x1;
+    y = x1;
+    return gcd;
+}
+
+int nlz(unsigned x)
+{
+    int n;
+    
+    if (x == 0) return(32);
+    n = 0;
+    if (x <= 0x0000FFFF) {n = n +16; x = x <<16;}
+    if (x <= 0x00FFFFFF) {n = n + 8; x = x << 8;}
+    if (x <= 0x0FFFFFFF) {n = n + 4; x = x << 4;}
+    if (x <= 0x3FFFFFFF) {n = n + 2; x = x << 2;}
+    if (x <= 0x7FFFFFFF) {n = n + 1;}
+    return n;
+}
+
+}
+    
 BigNumber::BigNumber()
 {
     _count = 1;
@@ -313,20 +345,6 @@ void BigNumber::Multiply(const BigNumber &other)
     _digits = result;
     Compact();
     _positive = _positive == other._positive;
-}
-
-static int nlz(unsigned x)
-{
-    int n;
-    
-    if (x == 0) return(32);
-    n = 0;
-    if (x <= 0x0000FFFF) {n = n +16; x = x <<16;}
-    if (x <= 0x00FFFFFF) {n = n + 8; x = x << 8;}
-    if (x <= 0x0FFFFFFF) {n = n + 4; x = x << 4;}
-    if (x <= 0x3FFFFFFF) {n = n + 2; x = x << 2;}
-    if (x <= 0x7FFFFFFF) {n = n + 1;}
-    return n;
 }
 
 void BigNumber::_Divide(const BigNumber &other, BigNumber *remainder)
@@ -634,4 +652,14 @@ std::string BigNumber::ToString(void) const
     return result;
 }
 
+BigNumber BigNumber::ModularInverse(const BigNumber& m)
+{
+    BigNumber x, y;
+    if (EuclideanGCD(*this, m, x, y) != 1)
+        throw std::runtime_error("Not reversible");
+    else
+        return (x % m + m) % m;
+}
+
+    
 } // namespace minissh::Maths

@@ -55,7 +55,27 @@ void RawDebugDump(const Byte *data, UInt32 length)
         printf("\n");
     }
 }
-    
+
+int MatchCharacters(const Byte *buffer, int bufferLength, const Byte *match, int matchLength)
+{
+    int index = 0;
+    int found = -1;
+    int matched = 0;
+    while (index < bufferLength) {
+        if (buffer[index] == match[matched]) {
+            if (matched == 0)
+                found = index;
+            matched++;
+            if (matched == matchLength)
+                return found;
+        } else {
+            matched = 0;
+        }
+        index++;
+    }
+    return -1;
+}
+
 } // namespace
 
 void Blob::DebugDump(void)
@@ -157,6 +177,31 @@ Blob Blob::Copy(void) const
     return result;
 }
 
+std::optional<std::string> Blob::FindLine(void)
+{
+    constexpr Byte crlf[] = {13, 10};
+    // Get raw buffer
+    const Byte *bytes = Value();
+    int length = Length();
+    // Find CR-LF
+    int tostrip = (int)sizeof(crlf);
+    int location = MatchCharacters(bytes, length, crlf, tostrip);
+    if (location == -1) {
+        constexpr Byte lf[] = {10};
+        // Turns out sometimes OpenSSH breaks the standard and only sends LF
+        tostrip = (int)sizeof(lf);
+        location = MatchCharacters(bytes, length, lf, tostrip);
+    }
+    if (location == -1)
+        return {};
+    // Make a string
+    std::string result(reinterpret_cast<const char*>(bytes), location);
+    // Remove used data
+    Strip(0, location + tostrip);
+    // Done
+    return location > 0 ? std::optional<std::reference_wrapper<std::string>>{result} : std::nullopt;
+}
+
 #pragma mark -
 #pragma mark Reader
 
@@ -172,6 +217,7 @@ Reader::Reader(const Blob& data, int offset)
 Byte Reader::ReadByte(void)
 {
     Check(1);
+    _length--;
     return *(_cursor++);
 }
 
@@ -269,9 +315,18 @@ void Writer::Write(Byte byte)
     _blob.Append(&byte, 1);
 }
 
-void Writer::Write(Blob bytes)
+void Writer::Write(Blob bytes, int offset, int length)
 {
-    _blob.Append(bytes.Value(), bytes.Length());
+    if (length == -1)
+        length = bytes.Length() - offset;
+    else if ((offset + length) > bytes.Length())
+        throw new std::runtime_error("Write out of range");
+    _blob.Append(bytes.Value() + offset, length);
+}
+
+void Writer::Write(const std::string& str)
+{
+    _blob.Append((Byte*)str.c_str(), str.length());
 }
 
 void Writer::Write(bool boolean)

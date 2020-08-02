@@ -28,6 +28,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <optional>
 #include "Maths.h"
 #include "BaseTypes.h"
 
@@ -68,6 +69,9 @@ public:
     void Strip(int location, int length);
     Blob Copy(void) const;
 
+    // Utility
+    std::optional<std::string> FindLine(void);
+
 private:
     Byte *_value;
     int _len, _max;
@@ -103,7 +107,8 @@ public:
     Writer(Blob& output);
     
     void Write(Byte byte);
-    void Write(Blob bytes);
+    void Write(Blob bytes, int offset = 0, int length = -1); // Unlike WriteString, this does not write length, merely appending the bytes
+    void Write(const std::string& str); // Unlike WriteString, this does not write length, but appends the string
     void Write(bool boolean);
     void Write(UInt32 value);
     void Write(UInt64 value);

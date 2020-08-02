@@ -63,6 +63,7 @@ public:
         return result;
     }
     BigNumber PowerMod(const BigNumber &pow, const BigNumber &mod) const;
+    BigNumber ModularInverse(const BigNumber &m);
 
     bool IsProbablePrime(int certainty);
     int GetLowestSetBit(void);
