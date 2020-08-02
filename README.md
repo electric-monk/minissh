@@ -16,4 +16,3 @@ Though it's plain C++, it was developed on MacOS X, so an Xcode project is provi
 
 - It's been updated to use STL smart pointers and strings, however this has increased the binary size by ~200K. Custom implementations may help for embedded purposes. It's also C++17, which may be a bit new for some purposes. On the plus side, the code is more clear to follow.
 - Blob class needs to be upgraded to be more efficient, by internally sharing pointers/etc.
-- Key storage, which is required for server support (which in itself should be trivial as most of the client code will also function in server mode)
