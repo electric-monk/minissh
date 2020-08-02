@@ -159,7 +159,7 @@ namespace Internal {
         
         void HandleMoreData(UInt32 previousLength)
         {
-            int blockSize = ((_owner.mode == Server) ? _owner.encryptionToServer : _owner.encryptionToClient)->BlockSize();
+            int blockSize = _owner.GetIncomingEncryption()->BlockSize();
             int amount;
             while (_owner.inputBuffer.Length() >= (amount = NextRead(blockSize))) {
                 if (!_packet)
@@ -381,7 +381,7 @@ void Packet::Append(const Byte *bytes, int length)
     // Hacky
     if (_requiredBlocks && (_decodedBlocks >= _requiredBlocks))
         return;
-    std::shared_ptr<EncryptionAlgorithm> decrypter = (_owner.mode == Client) ? _owner.encryptionToClient : _owner.encryptionToServer;
+    std::shared_ptr<EncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
     int blockSize = decrypter->BlockSize();
     Blob chunk;
     int offset = _decodedBlocks * blockSize;
@@ -399,8 +399,8 @@ void Packet::Append(const Byte *bytes, int length)
 
 bool Packet::Satisfied(void)
 {
-    std::shared_ptr<EncryptionAlgorithm> decrypter = (_owner.mode == Client) ? _owner.encryptionToClient : _owner.encryptionToServer;
-    std::shared_ptr<HMACAlgorithm> mac = (_owner.mode == Client) ? _owner.macToClient : _owner.macToServer;
+    std::shared_ptr<EncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
+    std::shared_ptr<HMACAlgorithm> mac = _owner.GetIncomingHMAC();
     if (Length() < decrypter->BlockSize())
         return false;
     return Length() == PacketLength() + sizeof(UInt32) + mac->Length();
@@ -408,11 +408,11 @@ bool Packet::Satisfied(void)
 
 UInt32 Packet::Requires(void)
 {
-    std::shared_ptr<EncryptionAlgorithm> decrypter = (_owner.mode == Client) ? _owner.encryptionToClient : _owner.encryptionToServer;
+    std::shared_ptr<EncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
     UInt32 blockSize = decrypter->BlockSize();
     if (Length() < blockSize)
         return blockSize;
-    std::shared_ptr<HMACAlgorithm> mac = (_owner.mode == Client) ? _owner.macToClient : _owner.macToServer;
+    std::shared_ptr<HMACAlgorithm> mac = _owner.GetIncomingHMAC();
     return PacketLength() + sizeof(UInt32) + mac->Length() - Length();
 }
 
@@ -430,7 +430,7 @@ UInt32 Packet::PaddingLength(void) const
 
 Types::Blob Packet::Payload(void) const
 {
-    std::shared_ptr<EncryptionAlgorithm> decrypter = (_owner.mode == Client) ? _owner.encryptionToClient : _owner.encryptionToServer;
+    std::shared_ptr<EncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
     if (Length() < decrypter->BlockSize())
         throw new std::runtime_error("Packet does not contain at least a block");
     Types::Reader reader(*this);
@@ -456,7 +456,7 @@ Types::Blob Packet::Padding(void) const
 
 Types::Blob Packet::MAC(void) const
 {
-    std::shared_ptr<HMACAlgorithm> mac = (_owner.mode == Client) ? _owner.macToClient : _owner.macToServer;
+    std::shared_ptr<HMACAlgorithm> mac = _owner.GetIncomingHMAC();
     if (Length() < (PacketLength() + mac->Length() + sizeof(UInt32)))
         throw new std::runtime_error("Packet is missing data");
     Types::Reader reader(*this);
@@ -467,7 +467,7 @@ Types::Blob Packet::MAC(void) const
 
 bool Packet::CheckMAC(UInt32 sequenceNumber) const
 {
-    std::shared_ptr<HMACAlgorithm> mac = (_owner.mode == Client) ? _owner.macToClient : _owner.macToServer;
+    std::shared_ptr<HMACAlgorithm> mac = _owner.GetIncomingHMAC();
     if (mac->Length() == 0)
         return true;
     Blob macPacket;
@@ -612,7 +612,7 @@ void Transport::HandlePacket(Packet block)
 
 void Transport::Send(Types::Blob payload)
 {
-    std::shared_ptr<EncryptionAlgorithm> encrypter = (mode == Client) ? encryptionToServer : encryptionToClient;
+    std::shared_ptr<EncryptionAlgorithm> encrypter = GetOutgoingEncryption();
     int blockSize = encrypter->BlockSize();
 
     // TODO: compression (payload = Compress(payload))
@@ -642,7 +642,7 @@ void Transport::Send(Types::Blob payload)
         }
     }
 
-    DEBUG_LOG_TRANSFER(("C> message %i: %i bytes (%i total)\n", payload.Value()[0], payload.Length(), packet.Length() + ((mode == Client) ? macToServer : macToClient)->Length()));
+    DEBUG_LOG_TRANSFER(("C> message %i: %i bytes (%i total)\n", payload.Value()[0], payload.Length(), packet.Length() + GetOutgoingHMAC()->Length()));
 #ifdef DEBUG_LOG_CONTENT
     payload.DebugDump();
 #endif
@@ -658,7 +658,7 @@ void Transport::Send(Types::Blob payload)
     Types::Writer macWriter(macPacket);
     macWriter.Write(_localSeqCounter);
     macWriter.Write(packet);
-    Types::Blob macData = ((mode == Client) ? macToServer : macToClient)->Generate(macPacket);
+    Types::Blob macData = GetOutgoingHMAC()->Generate(macPacket);
     _delegate->Send(macData.Value(), macData.Length());
 
     _localSeqCounter++;

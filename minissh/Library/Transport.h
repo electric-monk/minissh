@@ -268,6 +268,24 @@ public:
     // Control
     void Start(void);
     
+    // Utilities
+    inline std::shared_ptr<EncryptionAlgorithm> GetIncomingEncryption(void)
+    {
+        return (mode == Client) ? encryptionToClient : encryptionToServer;
+    }
+    inline std::shared_ptr<EncryptionAlgorithm> GetOutgoingEncryption(void)
+    {
+        return (mode == Client) ? encryptionToServer : encryptionToClient;
+    }
+    inline std::shared_ptr<HMACAlgorithm> GetIncomingHMAC(void)
+    {
+        return (mode == Client) ? macToClient : macToServer;
+    }
+    inline std::shared_ptr<HMACAlgorithm> GetOutgoingHMAC(void)
+    {
+        return (mode == Client) ? macToServer : macToClient;
+    }
+
 private:
     Delegate *_delegate = nullptr;
     std::shared_ptr<Internal::Handler> _handler;
