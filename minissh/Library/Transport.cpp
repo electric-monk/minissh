@@ -215,10 +215,10 @@ namespace Internal {
     template<class C> std::optional<std::string> FindMatch(Mode mode, const std::vector<std::string>& remoteList, const std::map<std::string, C>& localList)
     {
         std::vector<std::string> localListKeys = AllKeys(localList);
-        return FindMatch(
-            (mode == Server) ? remoteList : localListKeys,
-            (mode == Server) ? localListKeys : remoteList
-        );
+        if (mode == Server)
+            return FindMatch(remoteList, localListKeys);
+        else
+            return FindMatch(localListKeys, remoteList);
     }
     
     class KexHandler : public MessageHandler
