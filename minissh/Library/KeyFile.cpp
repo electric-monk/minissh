@@ -65,7 +65,7 @@ KeyFileLoaderImpl::~KeyFileLoaderImpl()
         LoaderEnd = _last;
 }
 
-std::shared_ptr<KeyFile> LoadKeys(Types::Blob input)
+std::shared_ptr<IKeyFile> LoadKeys(Types::Blob input)
 {
     // Inspect first five bytes
     int length = input.Length();
@@ -127,7 +127,7 @@ std::shared_ptr<KeyFile> LoadKeys(Types::Blob input)
     return nullptr;
 }
     
-Types::Blob SaveKeys(std::shared_ptr<KeyFile> keys, FileType type, bool isPrivate)
+Types::Blob SaveKeys(std::shared_ptr<IKeyFile> keys, FileType type, bool isPrivate)
 {
     std::string desc = keys->GetKeyName(type, isPrivate);
     Types::Blob base64 = Base64::Encode(isPrivate ? keys->SavePrivate(type) : keys->SavePublic(type));

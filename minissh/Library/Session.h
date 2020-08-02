@@ -12,7 +12,10 @@
 
 namespace minissh::Core {
 
-class Session : public Connection::Channel
+/**
+ * An SSH session, representing a single terminal.
+ */
+class Session : public Connection::AChannel
 {
 public:
     Session(Connection& owner);

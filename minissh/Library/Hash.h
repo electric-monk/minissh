@@ -13,24 +13,36 @@
 
 namespace minissh::Hash {
 
+/**
+ * Exception for hash code
+ */
 struct Exception : public std::runtime_error
 {
     Exception(const char* const& message)
     :runtime_error(message)
     {}
 };
-    
+   
+/**
+ * Exception specifically for 'message too long' RSA error.
+ */
 struct MessageTooLong : public Exception
 {
     MessageTooLong()
     :Exception("Hash input too long")
     {}
 };
-    
-class Type
+   
+/**
+ * Abstract base class for providing an SSH hashing algorithm.
+ */
+class AType
 {
 public:
-    class Token
+    /**
+     * Abstract base class for implementing a general hashing algorithm.
+     */
+    class AToken
     {
     public:
         virtual void Update(const Byte *data, UInt32 length) = 0;
@@ -42,25 +54,28 @@ public:
         }
 
     protected:
-        ~Token() = default;
+        ~AToken() = default;
     };
     
     virtual Types::Blob EMSA_PKCS1_V1_5_Prefix(void) const = 0;
-    virtual std::shared_ptr<Token> Start(void) const = 0;
+    virtual std::shared_ptr<AToken> Start(void) const = 0;
 
     std::optional<Types::Blob> Compute(Types::Blob data) const
     {
-        std::shared_ptr<Token> token = Start();
+        std::shared_ptr<AToken> token = Start();
         token->Update(data);
         return token->End();
     }
 };
 
-class SHA1 : public Type
+/**
+ * Class implementing the SHA1 algorithm.
+ */
+class SHA1 : public AType
 {
 public:
     Types::Blob EMSA_PKCS1_V1_5_Prefix(void) const override;
-    std::shared_ptr<Token> Start(void) const override;
+    std::shared_ptr<AToken> Start(void) const override;
 };
 
 } // namespace minissh::Hash

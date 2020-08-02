@@ -13,10 +13,10 @@
 
 namespace minissh::Random {
 
-class BlumBlumShub : public Maths::RandomSource
+class BlumBlumShub : public Maths::IRandomSource
 {
 public:
-    BlumBlumShub(int bits, Maths::RandomSource &source);
+    BlumBlumShub(int bits, Maths::IRandomSource &source);
     
     void SetSeed(Byte *bytes, UInt32 length);
     

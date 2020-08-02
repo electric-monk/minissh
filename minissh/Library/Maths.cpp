@@ -115,7 +115,7 @@ BigNumber::BigNumber(const UInt32 *data, UInt32 count, bool reverse)
     Compact();
 }
 
-BigNumber::BigNumber(UInt32 bits, RandomSource &source, int primeCertainty)
+BigNumber::BigNumber(UInt32 bits, IRandomSource &source, int primeCertainty)
 {
     _positive = true;
     _count = (bits + (sizeof(DigitType) * 8) - 1) / (8 * sizeof(DigitType));

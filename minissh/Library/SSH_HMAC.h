@@ -13,7 +13,10 @@
 
 namespace minissh::Algorithm {
 
-class HMAC_SHA1 : public Transport::HMACAlgorithm
+/**
+ * Class implementing "hmac-sha1" HMAC algorithm.
+ */
+class HMAC_SHA1 : public Transport::IHMACAlgorithm
 {
 public:
     HMAC_SHA1(Transport::Transport& owner, Transport::Mode mode);
@@ -23,7 +26,7 @@ public:
     int Length(void);
     
     static constexpr char Name[] = "hmac-sha1";
-    class Factory : public Transport::Configuration::Instantiatable<HMAC_SHA1, Transport::HMACAlgorithm>
+    class Factory : public Transport::Configuration::Instantiatable<HMAC_SHA1, Transport::IHMACAlgorithm>
     {
     };
 

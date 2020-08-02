@@ -12,19 +12,19 @@
 
 namespace minissh::Algorithm {
 
-class OperationCBC : public Operation
+class OperationCBC : public AOperation
 {
 public:
-    OperationCBC(Encryption& encryption, Types::Blob initialisationVector);
+    OperationCBC(AEncryption& encryption, Types::Blob initialisationVector);
     
     Types::Blob Encrypt(Types::Blob data);
     Types::Blob Decrypt(Types::Blob data);
 };
 
-class OperationCTR : public Operation
+class OperationCTR : public AOperation
 {
 public:
-    OperationCTR(Encryption& encryption, Types::Blob initialisationVector);
+    OperationCTR(AEncryption& encryption, Types::Blob initialisationVector);
     
     Types::Blob Encrypt(Types::Blob data);
     Types::Blob Decrypt(Types::Blob data);

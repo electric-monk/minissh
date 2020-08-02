@@ -14,7 +14,7 @@
 
 namespace minissh::Algorithm {
 
-class AES_CBC : public Transport::EncryptionAlgorithm
+class AES_CBC : public Transport::IEncryptionAlgorithm
 {
 public:
     AES_CBC(Transport::Transport& owner, Transport::Mode mode, int keySize);
@@ -38,7 +38,7 @@ public:
     }
 
     static constexpr char Name[] = "aes128-cbc";
-    class Factory : public Transport::Configuration::Instantiatable<AES128_CBC, Transport::EncryptionAlgorithm>
+    class Factory : public Transport::Configuration::Instantiatable<AES128_CBC, Transport::IEncryptionAlgorithm>
     {
     };
 };
@@ -52,7 +52,7 @@ public:
     }
     
     static constexpr char Name[] = "aes192-cbc";
-    class Factory : public Transport::Configuration::Instantiatable<AES192_CBC, Transport::EncryptionAlgorithm>
+    class Factory : public Transport::Configuration::Instantiatable<AES192_CBC, Transport::IEncryptionAlgorithm>
     {
     };
 };
@@ -66,12 +66,12 @@ public:
     }
     
     static constexpr char Name[] = "aes256-cbc";
-    class Factory : public Transport::Configuration::Instantiatable<AES256_CBC, Transport::EncryptionAlgorithm>
+    class Factory : public Transport::Configuration::Instantiatable<AES256_CBC, Transport::IEncryptionAlgorithm>
     {
     };
 };
 
-class AES_CTR : public Transport::EncryptionAlgorithm
+class AES_CTR : public Transport::IEncryptionAlgorithm
 {
 public:
     AES_CTR(Transport::Transport& owner, Transport::Mode mode, int keySize);
@@ -95,7 +95,7 @@ public:
     }
     
     static constexpr char Name[] = "aes128-ctr";
-    class Factory : public Transport::Configuration::Instantiatable<AES128_CTR, Transport::EncryptionAlgorithm>
+    class Factory : public Transport::Configuration::Instantiatable<AES128_CTR, Transport::IEncryptionAlgorithm>
     {
     };
 };
@@ -109,7 +109,7 @@ public:
     }
     
     static constexpr char Name[] = "aes192-ctr";
-    class Factory : public Transport::Configuration::Instantiatable<AES192_CTR, Transport::EncryptionAlgorithm>
+    class Factory : public Transport::Configuration::Instantiatable<AES192_CTR, Transport::IEncryptionAlgorithm>
     {
     };
 };
@@ -123,7 +123,7 @@ public:
     }
     
     static constexpr char Name[] = "aes256-ctr";
-    class Factory : public Transport::Configuration::Instantiatable<AES256_CTR, Transport::EncryptionAlgorithm>
+    class Factory : public Transport::Configuration::Instantiatable<AES256_CTR, Transport::IEncryptionAlgorithm>
     {
     };
 };

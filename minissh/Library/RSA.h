@@ -33,7 +33,7 @@ public:
     Maths::BigNumber e; // Exponent
 };
 
-class KeyPublic : public Files::Format::KeyFile
+class KeyPublic : public Files::Format::IKeyFile
 {
 public:
     KeyPublic(Types::Blob load, Files::Format::FileType type);
@@ -53,7 +53,7 @@ protected:
 class KeySet : public KeyPublic
 {
 public:
-    KeySet(Maths::RandomSource& random, int bits);
+    KeySet(Maths::IRandomSource& random, int bits);
     KeySet(Types::Blob load, Files::Format::FileType type);
 
     Key PrivateKey(void) const { return Key(_n, _d); }
@@ -70,8 +70,8 @@ private:
 };
 
 namespace SSA_PKCS1_V1_5 {
-    std::optional<Types::Blob> Sign(const Key& privateKey, Types::Blob M, const Hash::Type& hash);
-    bool Verify(const Key& publicKey, Types::Blob M, Types::Blob S, const Hash::Type& hash);
+    std::optional<Types::Blob> Sign(const Key& privateKey, Types::Blob M, const Hash::AType& hash);
+    bool Verify(const Key& publicKey, Types::Blob M, Types::Blob S, const Hash::AType& hash);
 } // namespace SSA_PKCS1_V1_5
 
 } // namespace minissh::RSA

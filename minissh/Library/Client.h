@@ -12,32 +12,39 @@
 
 namespace minissh::Core {
 
+/**
+ * Class implementing SSH client-specific parts of the transport.
+ */
 class Client : public Transport::Transport
 {
 public:
-    class Enabler;
-    
-    class Service : public minissh::Transport::MessageHandler
+    /**
+     * Interface for an SSH service client.
+     */
+    class IService : public minissh::Transport::IMessageHandler
     {
     public:
         virtual void Start(void) = 0;
     };
 
-    class Enabler : public minissh::Transport::MessageHandler
+    /**
+     * Interface for an SSH service enabler, which is used to request a specific service.
+     */
+    class IEnabler : public minissh::Transport::IMessageHandler
     {
     public:
-        virtual void Request(const std::string& name, Service* service) = 0;
+        virtual void Request(const std::string& name, IService* service) = 0;
     };
     
-    Client(Maths::RandomSource& source);
+    Client(Maths::IRandomSource& source);
     
-    std::shared_ptr<Enabler> DefaultEnabler(void);  // Doesn't do any authentication/etc., just asks for it
+    std::shared_ptr<IEnabler> DefaultEnabler(void);  // Doesn't do any authentication/etc., just asks for it
 
 protected:
-    void KeysChanged(void);
+    void KeysChanged(void) override;
     
 private:
-    std::shared_ptr<Enabler> _enabler;
+    std::shared_ptr<IEnabler> _enabler;
 };
 
 } // namespace minissh::Core

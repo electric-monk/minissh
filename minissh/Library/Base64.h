@@ -12,7 +12,14 @@
 
 namespace minissh::Files::Base64 {
     
+/**
+ * Encode a binary blob into Base64
+ */
 Types::Blob Encode(Types::Blob raw);
+    
+/**
+ * Decode a Base64 string into a binary blob
+ */
 Types::Blob Decode(Types::Blob text);
     
 } // namespace minissh::Files

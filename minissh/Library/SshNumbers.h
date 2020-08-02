@@ -43,3 +43,6 @@ enum SSHMessages : minissh::Byte {
     CHANNEL_SUCCESS = 99,
     CHANNEL_FAILURE = 100,
 };
+
+std::string StringForSSHNumber(SSHMessages number);
+

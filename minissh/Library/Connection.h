@@ -13,14 +13,20 @@
 
 namespace minissh::Core {
 
-class Connection : public Client::Service
+/**
+ * Class implementing the "ssh-connection" service.
+ */
+class Connection : public Client::IService
 {
 public:
-    class Channel
+    /**
+     * Abstract base class implementing an individual channel within the service.
+     */
+    class AChannel
     {
     public:
-        Channel(Connection& owner);
-        virtual ~Channel();
+        AChannel(Connection& owner);
+        virtual ~AChannel();
         
     protected:
         // Server side
@@ -45,42 +51,54 @@ public:
         void Close(void);
         
     private:
-        class Pending
+        /**
+         * Abstract base class representing a pending transmission.
+         */
+        class APending
         {
         public:
-            Pending(Pending **start, Pending **end);
-            virtual ~Pending();
+            APending(APending **start, APending **end);
+            virtual ~APending();
             
             virtual UInt32 Send(Transport::Transport& sender, UInt32 remoteChannel, UInt32 maximum) = 0;
             virtual bool Empty(void) = 0;
             virtual bool IgnoreWindow(void) = 0;
             
         private:
-            Pending **_start, **_end;
-            Pending *_previous, *_next;
+            APending **_start, **_end;
+            APending *_previous, *_next;
         };
-        class PendingData : public Pending
+        /**
+         * Class representing data to send.
+         */
+        class PendingData : public APending
         {
         public:
-            PendingData(Pending **start, Pending **end, Types::Blob data);
+            PendingData(APending **start, APending **end, Types::Blob data);
             UInt32 Send(Transport::Transport& sender, UInt32 remoteChannel, UInt32 maximum) override;
             bool Empty(void) override;
             bool IgnoreWindow(void) override;
         protected:
             Types::Blob _data;
         };
+        /**
+         * Class representing extended data to send.
+         */
         class PendingExtendedData : public PendingData
         {
         public:
-            PendingExtendedData(Pending **start, Pending **end, UInt32 type, Types::Blob data);
+            PendingExtendedData(APending **start, APending **end, UInt32 type, Types::Blob data);
             UInt32 Send(Transport::Transport& sender, UInt32 remoteChannel, UInt32 maximum) override;
         protected:
             UInt32 _type;
         };
-        class PendingEOF : public Pending
+        /**
+         * Class representing an EOF to send.
+         */
+        class PendingEOF : public APending
         {
         public:
-            PendingEOF(Pending **start, Pending **end);
+            PendingEOF(APending **start, APending **end);
             UInt32 Send(Transport::Transport& sender, UInt32 remoteChannel, UInt32 maximum) override;
             bool Empty(void) override;
             bool IgnoreWindow(void) override;
@@ -106,18 +124,18 @@ public:
         bool _sentClose = false;
         
         Connection &_owner;
-        Pending *_start = nullptr;
-        Pending *_end = nullptr;
+        APending *_start = nullptr;
+        APending *_end = nullptr;
         Types::Blob *_pending;
         
         void CheckSend(void);
         void CheckWindow(void);
     };
 
-    Connection(Client& owner, std::shared_ptr<Client::Enabler> enabler);
+    Connection(Client& owner, std::shared_ptr<Client::IEnabler> enabler);
     ~Connection();
 
-    void OpenChannel(std::shared_ptr<Channel> channel);  // Start an outgoing connection (other side is provider)
+    void OpenChannel(std::shared_ptr<AChannel> channel);  // Start an outgoing connection (other side is provider)
 
     // TODO: Server constructor and plumbing
 //    void AddService(sshChannelFactory *factory);    // Start an incoming connection (this side is provider)
@@ -126,18 +144,21 @@ public:
     void HandlePayload(Types::Blob data);
     
 private:
+    /**
+     * Class to contain all active channels.
+     */
     class ChannelList
     {
     private:
-        std::vector<std::shared_ptr<Connection::Channel>> _channels;
+        std::vector<std::shared_ptr<Connection::AChannel>> _channels;
         
     public:
-        std::shared_ptr<Connection::Channel> ChannelFor(UInt32 channel);
-        UInt32 Map(std::shared_ptr<Connection::Channel> channel);
+        std::shared_ptr<Connection::AChannel> ChannelFor(UInt32 channel);
+        UInt32 Map(std::shared_ptr<Connection::AChannel> channel);
         void Unmap(UInt32 channel);
         
-        std::vector<std::shared_ptr<Connection::Channel>>::iterator begin(void) { return _channels.begin(); }
-        std::vector<std::shared_ptr<Connection::Channel>>::iterator end(void) { return _channels.end(); }
+        std::vector<std::shared_ptr<Connection::AChannel>>::iterator begin(void) { return _channels.begin(); }
+        std::vector<std::shared_ptr<Connection::AChannel>>::iterator end(void) { return _channels.end(); }
         
     };
 

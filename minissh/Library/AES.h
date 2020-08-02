@@ -12,7 +12,10 @@
 
 namespace minissh::Algorithm {
 
-class AES : public Encryption
+/**
+ * Implementation of AES encryption algorithm.
+ */
+class AES : public AEncryption
 {
 public:
     AES(Types::Blob key);

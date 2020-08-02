@@ -14,10 +14,13 @@ namespace minissh::Files::DER {
 
 namespace Reader {
     
-class Callback
+/**
+ * Callback for streaming parsing DER data.
+ */
+class ICallback
 {
 public:
-    virtual ~Callback() = default;
+    virtual ~ICallback() = default;
     
     virtual void StartSequence(void) {}
     virtual void EndSequence(void) {}
@@ -34,21 +37,30 @@ public:
     virtual void Unknown(Byte type, Types::Blob data) = 0;
 };
  
-void Load(minissh::Types::Blob input, Callback& callbacks);
+/**
+ * Streaming parser for DER binary data.
+ */
+void Load(minissh::Types::Blob input, ICallback& callbacks);
     
 }
     
 namespace Writer {
     
-class Base
+/**
+ * Interface for a DER data type, providing a 'save' method.
+ */
+class IBase
 {
 public:
-    virtual ~Base() = default;
+    virtual ~IBase() = default;
     
     virtual Types::Blob Save(void) = 0;
 };
 
-class Container : public Base
+/**
+ * Base implementation for a DER container.
+ */
+class Container : public IBase
 {
 protected:
     const Byte _type;
@@ -56,22 +68,31 @@ protected:
 public:
     Types::Blob Save(void) override;
     
-    std::vector<std::shared_ptr<Base>> components;
+    std::vector<std::shared_ptr<IBase>> components;
 };
     
+/**
+ * Class representing a SEQUENCE.
+ */
 class Sequence : public Container
 {
 public:
     Sequence();
 };
  
+/**
+ * Class representing a SET.
+ */
 class Set : public Container
 {
 public:
     Set();
 };
 
-class Integer : public Base
+/**
+ * Class representing an INTEGER.
+ */
+class Integer : public IBase
 {
 public:
     Integer(){}
@@ -80,7 +101,10 @@ public:
     Maths::BigNumber value;
 };
 
-class ObjectIdentifier : public Base
+/**
+ * Class representing an OBJECT IDENTIFIER.
+ */
+class ObjectIdentifier : public IBase
 {
 public:
     ObjectIdentifier(){}
@@ -92,8 +116,11 @@ public:
     Types::Blob Save(void) override;
     std::vector<UInt32> components;
 };
-    
-class Null : public Base
+  
+/**
+ * Class representing a NULL.
+ */
+class Null : public IBase
 {
 public:
     Null();

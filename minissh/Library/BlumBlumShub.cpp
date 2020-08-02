@@ -14,7 +14,7 @@ namespace minissh::Random {
 
 namespace {
     
-Maths::BigNumber GetPrime(int bits, Maths::RandomSource &source)
+Maths::BigNumber GetPrime(int bits, Maths::IRandomSource &source)
 {
     while (true) {
         Maths::BigNumber result = Maths::BigNumber(bits, source, 100);
@@ -23,7 +23,7 @@ Maths::BigNumber GetPrime(int bits, Maths::RandomSource &source)
     }
 }
 
-Maths::BigNumber GenerateN(int bits, Maths::RandomSource &source)
+Maths::BigNumber GenerateN(int bits, Maths::IRandomSource &source)
 {
     Maths::BigNumber p = GetPrime(bits / 2, source);
     Maths::BigNumber q = GetPrime(bits / 2, source);
@@ -34,7 +34,7 @@ Maths::BigNumber GenerateN(int bits, Maths::RandomSource &source)
 
 } // namespace
 
-BlumBlumShub::BlumBlumShub(int bits, RandomSource &source)
+BlumBlumShub::BlumBlumShub(int bits, IRandomSource &source)
 {
     _n = GenerateN(bits, source);
     _state = NULL;

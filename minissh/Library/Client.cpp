@@ -18,7 +18,7 @@ namespace {
     
     const Byte messages[] = {SERVICE_ACCEPT};
 
-    class DefaultEnablerImpl : public Client::Enabler
+    class DefaultEnablerImpl : public Client::IEnabler
     {
     public:
         DefaultEnablerImpl(Client& owner)
@@ -41,7 +41,7 @@ namespace {
             }
         }
         
-        void Request(const std::string& name, Client::Service* service) override
+        void Request(const std::string& name, Client::IService* service) override
         {
             // Add to list
             _pending.push_back({name, service});
@@ -61,8 +61,9 @@ namespace {
                 // error
                 return;
             }
+            
+            DEBUG_LOG_STATE(("Basic service accepted [%s]\n", result.c_str()));
             record.service->Start();
-            DEBUG_LOG_STATE(("Service accepted\n"));
             _pending.erase(_pending.begin());
             // TODO: tell someone it's done, so they can proceed if necessary
             if (_pending.size() != 0)
@@ -72,7 +73,7 @@ namespace {
     private:
         struct RequestRecord {
             std::string expected;
-            Client::Service *service;
+            Client::IService *service;
         };
         
         bool _running;
@@ -81,24 +82,24 @@ namespace {
         
         void RequestNext(void)
         {
+            DEBUG_LOG_STATE(("Requesting basic service: %s\n", _pending.front().expected.c_str()));
+
             Types::Blob message;
             Types::Writer writer(message);
             writer.Write(Byte(SERVICE_REQUEST));
             writer.WriteString(_pending.front().expected);
             _owner.Send(message);
-            
-            DEBUG_LOG_STATE(("Requesting basic service: %s\n", _pending.front().expected.c_str()));
         }
     };
     
 } // namespace
 
-Client::Client(Maths::RandomSource& source)
+Client::Client(Maths::IRandomSource& source)
 :Transport(source), _enabler(std::make_shared<DefaultEnablerImpl>(*this))
 {
 }
 
-std::shared_ptr<Client::Enabler> Client::DefaultEnabler(void)
+std::shared_ptr<Client::IEnabler> Client::DefaultEnabler(void)
 {
     return _enabler;
 }

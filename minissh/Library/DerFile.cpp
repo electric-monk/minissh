@@ -87,7 +87,7 @@ private:
         return result;
     }
 public:
-    Core(Callback& callbacks, Types::Blob data)
+    Core(ICallback& callbacks, Types::Blob data)
     :_callbacks(callbacks), _reader(data)
     {
     }
@@ -130,13 +130,13 @@ public:
     }
 
 private:
-    Callback &_callbacks;
+    ICallback &_callbacks;
     Types::Reader _reader;
 };
 
 } // namespace
     
-void Load(minissh::Types::Blob input, Callback& callbacks)
+void Load(minissh::Types::Blob input, ICallback& callbacks)
 {
     Core(callbacks, input).Parse();
 }
@@ -191,7 +191,7 @@ Types::Blob Container::Save(void)
     // TODO: Efficiency
     Types::Blob temp;
     Types::Writer tempWrite(temp);
-    for (std::shared_ptr<Base> item : components)
+    for (std::shared_ptr<IBase> item : components)
         tempWrite.Write(item->Save());
     // Write header
     Types::Blob result;

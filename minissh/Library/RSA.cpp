@@ -15,7 +15,7 @@ namespace minissh::RSA {
     
 namespace {
     
-class KeyBaseReader : public Files::DER::Reader::Callback
+class KeyBaseReader : public Files::DER::Reader::ICallback
 {
 protected:
     void Failed(void)
@@ -208,7 +208,7 @@ Maths::BigNumber RSAVP1(const Key& key, const Maths::BigNumber& s)
     return m;
 }
 
-KeySet::KeySet(Maths::RandomSource& random, int bits)
+KeySet::KeySet(Maths::IRandomSource& random, int bits)
 {
     _p = Maths::BigNumber(bits, random, 100);
     _q = Maths::BigNumber(bits, random, 100);
@@ -291,7 +291,7 @@ std::string KeyPublic::GetKeyName(Files::Format::FileType type, bool isPrivate)
         if (type == Files::Format::FileType::DER)
             return TEXT_DER_RSA_PUBLIC;
     }
-    return KeyFile::GetKeyName(type, isPrivate);
+    return IKeyFile::GetKeyName(type, isPrivate);
 }
 
 KeySet::KeySet(Types::Blob load, Files::Format::FileType type)
@@ -349,7 +349,7 @@ std::string KeySet::GetKeyName(Files::Format::FileType type, bool isPrivate)
 // TODO: Maybe replace these DER prefixes (which are dotted around the code) with calls to the new DER code
 
 // 9.2 EMSA-PKCS1-v1_5
-std::optional<Types::Blob> EMSA_PKCS1_V1_5(Types::Blob M, int emLen, const Hash::Type& hash)
+std::optional<Types::Blob> EMSA_PKCS1_V1_5(Types::Blob M, int emLen, const Hash::AType& hash)
 {
     // 1. Apply the hash function to the message M to produce a hash value
     //    H:
@@ -432,7 +432,7 @@ Types::Blob I2OSP(Maths::BigNumber value, int k)
 }
 
 // 8.2.1 Signature generation operation
-std::optional<Types::Blob> SSA_PKCS1_V1_5::Sign(const Key& privateKey, Types::Blob M, const Hash::Type& hash)
+std::optional<Types::Blob> SSA_PKCS1_V1_5::Sign(const Key& privateKey, Types::Blob M, const Hash::AType& hash)
 {
     int k = (privateKey.n.BitLength() + 7) / 8;
 
@@ -470,7 +470,7 @@ std::optional<Types::Blob> SSA_PKCS1_V1_5::Sign(const Key& privateKey, Types::Bl
 }
 
 // 8.2.2 Signature verification operation
-bool SSA_PKCS1_V1_5::Verify(const Key& publicKey, Types::Blob M, Types::Blob S, const Hash::Type& hash)
+bool SSA_PKCS1_V1_5::Verify(const Key& publicKey, Types::Blob M, Types::Blob S, const Hash::AType& hash)
 {
     int k = (publicKey.n.BitLength() + 7) / 8;
     

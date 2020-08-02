@@ -29,7 +29,7 @@ namespace minissh::Transport {
 namespace {
 
 // This class allows the transport to start up in an unencrypted mode without treating it as a special case
-class NoEncryption : public EncryptionAlgorithm
+class NoEncryption : public IEncryptionAlgorithm
 {
 public:
     NoEncryption()
@@ -52,7 +52,7 @@ public:
     }
 };
 
-class NoHmac : public HMACAlgorithm
+class NoHmac : public IHMACAlgorithm
 {
 public:
     NoHmac()
@@ -221,7 +221,7 @@ namespace Internal {
             return FindMatch(localListKeys, remoteList);
     }
     
-    class KexHandler : public MessageHandler
+    class KexHandler : public IMessageHandler
     {
     private:
         Transport &_owner;
@@ -381,7 +381,7 @@ void Packet::Append(const Byte *bytes, int length)
     // Hacky
     if (_requiredBlocks && (_decodedBlocks >= _requiredBlocks))
         return;
-    std::shared_ptr<EncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
+    std::shared_ptr<IEncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
     int blockSize = decrypter->BlockSize();
     Blob chunk;
     int offset = _decodedBlocks * blockSize;
@@ -399,8 +399,8 @@ void Packet::Append(const Byte *bytes, int length)
 
 bool Packet::Satisfied(void)
 {
-    std::shared_ptr<EncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
-    std::shared_ptr<HMACAlgorithm> mac = _owner.GetIncomingHMAC();
+    std::shared_ptr<IEncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
+    std::shared_ptr<IHMACAlgorithm> mac = _owner.GetIncomingHMAC();
     if (Length() < decrypter->BlockSize())
         return false;
     return Length() == PacketLength() + sizeof(UInt32) + mac->Length();
@@ -408,11 +408,11 @@ bool Packet::Satisfied(void)
 
 UInt32 Packet::Requires(void)
 {
-    std::shared_ptr<EncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
+    std::shared_ptr<IEncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
     UInt32 blockSize = decrypter->BlockSize();
     if (Length() < blockSize)
         return blockSize;
-    std::shared_ptr<HMACAlgorithm> mac = _owner.GetIncomingHMAC();
+    std::shared_ptr<IHMACAlgorithm> mac = _owner.GetIncomingHMAC();
     return PacketLength() + sizeof(UInt32) + mac->Length() - Length();
 }
 
@@ -430,7 +430,7 @@ UInt32 Packet::PaddingLength(void) const
 
 Types::Blob Packet::Payload(void) const
 {
-    std::shared_ptr<EncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
+    std::shared_ptr<IEncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
     if (Length() < decrypter->BlockSize())
         throw new std::runtime_error("Packet does not contain at least a block");
     Types::Reader reader(*this);
@@ -456,7 +456,7 @@ Types::Blob Packet::Padding(void) const
 
 Types::Blob Packet::MAC(void) const
 {
-    std::shared_ptr<HMACAlgorithm> mac = _owner.GetIncomingHMAC();
+    std::shared_ptr<IHMACAlgorithm> mac = _owner.GetIncomingHMAC();
     if (Length() < (PacketLength() + mac->Length() + sizeof(UInt32)))
         throw new std::runtime_error("Packet is missing data");
     Types::Reader reader(*this);
@@ -467,7 +467,7 @@ Types::Blob Packet::MAC(void) const
 
 bool Packet::CheckMAC(UInt32 sequenceNumber) const
 {
-    std::shared_ptr<HMACAlgorithm> mac = _owner.GetIncomingHMAC();
+    std::shared_ptr<IHMACAlgorithm> mac = _owner.GetIncomingHMAC();
     if (mac->Length() == 0)
         return true;
     Blob macPacket;
@@ -477,7 +477,7 @@ bool Packet::CheckMAC(UInt32 sequenceNumber) const
     return MAC().Compare(mac->Generate(macPacket));
 }
 
-Transport::Transport(Maths::RandomSource& source)
+Transport::Transport(Maths::IRandomSource& source)
 :random(source)
 {
     mode = Client;
@@ -491,7 +491,7 @@ Transport::Transport(Maths::RandomSource& source)
     kexHandler = std::make_shared<Internal::KexHandler>(*this, mode);
 }
 
-void Transport::RegisterForPackets(MessageHandler *handler, const Byte *number, int numberLength)
+void Transport::RegisterForPackets(IMessageHandler *handler, const Byte *number, int numberLength)
 {
     UnregisterForPackets(number, numberLength);
     for (int i = 0; i < numberLength; i++)
@@ -552,7 +552,7 @@ void Transport::Start(void)
     _delegate->Send(sending.Value(), sending.Length());
 }
 
-void Transport::SetDelegate(Delegate *delegate)
+void Transport::SetDelegate(IDelegate *delegate)
 {
     _delegate = delegate;
 }
@@ -591,15 +591,15 @@ void Transport::HandlePacket(Packet block)
     Types::Blob packet = block.Payload();
     Types::Reader reader(packet);
     Byte message = reader.ReadByte();
-    MessageHandler *handler = _packeters[message];
-    DEBUG_LOG_TRANSFER(("S> message %i: %i bytes (%i total): %s\n", message, packet.Length(), block.Length(), handler?"handled":"unclaimed"));
+    IMessageHandler *handler = _packeters[message];
+    DEBUG_LOG_TRANSFER(("S> message %s[%i]: %i bytes (%i total): %s\n", StringForSSHNumber(SSHMessages(message)).c_str(), message, packet.Length(), block.Length(), handler?"handled":"unclaimed"));
 #ifdef DEBUG_LOG_CONTENT
     block.DebugDump();
 #endif
     if (handler) {
         handler->HandlePayload(packet);
     } else {
-        printf("Unimplemented message %i:\n", message);
+        printf("Unimplemented message %s[%i]:\n", StringForSSHNumber(SSHMessages(message)).c_str(), message);
         packet.DebugDump();
         Types::Blob error;
         Types::Writer writer(error);
@@ -612,7 +612,7 @@ void Transport::HandlePacket(Packet block)
 
 void Transport::Send(Types::Blob payload)
 {
-    std::shared_ptr<EncryptionAlgorithm> encrypter = GetOutgoingEncryption();
+    std::shared_ptr<IEncryptionAlgorithm> encrypter = GetOutgoingEncryption();
     int blockSize = encrypter->BlockSize();
 
     // TODO: compression (payload = Compress(payload))
@@ -642,7 +642,9 @@ void Transport::Send(Types::Blob payload)
         }
     }
 
-    DEBUG_LOG_TRANSFER(("C> message %i: %i bytes (%i total)\n", payload.Value()[0], payload.Length(), packet.Length() + GetOutgoingHMAC()->Length()));
+    DEBUG_LOG_TRANSFER(("C> message %s[%i]: %i bytes (%i total)\n",
+        StringForSSHNumber(SSHMessages(payload.Value()[0])).c_str(), payload.Value()[0],
+        payload.Length(), packet.Length() + GetOutgoingHMAC()->Length()));
 #ifdef DEBUG_LOG_CONTENT
     payload.DebugDump();
 #endif
@@ -674,12 +676,12 @@ void Transport::SkipPacket(void)
     _toSkip++;
 }
 
-KeyExchanger::KeyExchanger(Transport& owner, Mode mode, const Hash::Type &hash)
+KeyExchanger::KeyExchanger(Transport& owner, Mode mode, const Hash::AType &hash)
 :_owner(owner), _mode(mode), _hash(hash)
 {
 }
 
-static Types::Blob MakeSameKey(const Hash::Type& hash, Maths::BigNumber K, Types::Blob H, Byte c, Types::Blob sessionID)
+static Types::Blob MakeSameKey(const Hash::AType& hash, Maths::BigNumber K, Types::Blob H, Byte c, Types::Blob sessionID)
 {
     Types::Blob blob;
     Types::Writer writer(blob);

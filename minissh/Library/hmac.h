@@ -14,6 +14,9 @@
 
 namespace minissh::HMAC {
 
-Types::Blob Calculate(const Hash::Type& hash, Types::Blob key, Types::Blob text);
+/**
+ * Generate an HMAC.
+ */
+Types::Blob Calculate(const Hash::AType& hash, Types::Blob key, Types::Blob text);
 
 } // namespace minissh::HMAC

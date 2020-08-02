@@ -13,8 +13,8 @@
 
 namespace minissh::Algorithm {
 
-OperationCBC::OperationCBC(Encryption& encryption, Types::Blob initialisationVector)
-:Operation(encryption, initialisationVector)
+OperationCBC::OperationCBC(AEncryption& encryption, Types::Blob initialisationVector)
+:AOperation(encryption, initialisationVector)
 {
 }
 
@@ -34,8 +34,8 @@ Types::Blob OperationCBC::Decrypt(Types::Blob data)
     return result;
 }
 
-OperationCTR::OperationCTR(Encryption& encryption, Types::Blob initialisationVector)
-:Operation(encryption, initialisationVector.Copy())
+OperationCTR::OperationCTR(AEncryption& encryption, Types::Blob initialisationVector)
+:AOperation(encryption, initialisationVector.Copy())
 {
 }
 

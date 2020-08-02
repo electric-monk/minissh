@@ -46,7 +46,7 @@ struct sockaddr_in getipa(const char* hostname, int port){
 	return ipa;
 }
 
-class SocketTest : public minissh::Core::Client::Delegate
+class SocketTest : public minissh::Core::Client::IDelegate
 {
 public:
     SocketTest(const char *host, unsigned short port)
@@ -114,7 +114,7 @@ protected:
     int _sock;
 };
 
-class TestRandom : public minissh::Maths::RandomSource
+class TestRandom : public minissh::Maths::IRandomSource
 {
 public:
     TestRandom()
@@ -129,7 +129,7 @@ public:
     }
 };
 
-class TestAuthentication : public minissh::Client::Authenticator
+class TestAuthentication : public minissh::Client::IAuthenticator
 {
 public:
     void Banner(Replier *replier, const std::string& message, const std::string& languageTag) override

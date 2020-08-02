@@ -12,7 +12,7 @@
 namespace minissh::Core {
 
 Session::Session(Connection& owner)
-:Connection::Channel(owner)
+:Connection::AChannel(owner)
 {
     _shell = false;
 }
@@ -75,7 +75,7 @@ void Session::ReceivedExtendedData(UInt32 type, Types::Blob data)
 
 void Session::Send(const char *keystrokes, UInt32 length)
 {
-    Channel::Send(Types::Blob((Byte*)keystrokes, length));
+    AChannel::Send(Types::Blob((Byte*)keystrokes, length));
 }
 
 } // namespace minissh::Core

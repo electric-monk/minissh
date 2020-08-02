@@ -13,10 +13,13 @@
 
 namespace minissh::Algorithm {
 
-class Encryption
+/**
+ * Abstract base class for implementing an encryption algorithm.
+ */
+class AEncryption
 {
 public:
-    Encryption(Types::Blob key);
+    AEncryption(Types::Blob key);
     
     virtual Types::Blob Encrypt(Types::Blob data) = 0;
     virtual Types::Blob Decrypt(Types::Blob data) = 0;
@@ -26,17 +29,20 @@ protected:
     Types::Blob _key;
 };
 
-class Operation
+/**
+ * Abstract base class for implementing an encryption operation.
+ */
+class AOperation
 {
 public:
-    Operation(Encryption& encryption, Types::Blob initialisationVector);
+    AOperation(AEncryption& encryption, Types::Blob initialisationVector);
     
     virtual Types::Blob Encrypt(Types::Blob data) = 0;
     virtual Types::Blob Decrypt(Types::Blob data) = 0;
     
 protected:
     
-    Encryption& _encryption;
+    AEncryption& _encryption;
     Types::Blob _currentVector;
     
     void SetVector(Types::Blob vector);

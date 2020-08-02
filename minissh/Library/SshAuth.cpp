@@ -17,15 +17,15 @@ namespace Client {
     const Byte messages[] = {USERAUTH_BANNER, USERAUTH_FAILURE, USERAUTH_SUCCESS};
 
     namespace {
-        class Enabler : public Core::Client::Enabler
+        class Enabler : public Core::Client::IEnabler
         {
         public:
-            Enabler(AuthService& owner, Core::Client& client, Authenticator *auth)
+            Enabler(AuthService& owner, Core::Client& client, IAuthenticator *auth)
             :_owner(owner), _client(client), _auth(auth)
             {
             }
             
-            void Request(const std::string& name, Core::Client::Service* service) override
+            void Request(const std::string& name, Core::Client::IService* service) override
             {
                 _owner.Enqueue({&_client, name, service, _auth});
             }
@@ -38,26 +38,26 @@ namespace Client {
         private:
             AuthService &_owner;
             Core::Client &_client;
-            Authenticator *_auth;
+            IAuthenticator *_auth;
         };
     }
 
-    Authenticator::Replier::Replier(Internal::AuthTask& task)
+    IAuthenticator::Replier::Replier(Internal::AuthTask& task)
     :_task(task)
     {
     }
     
-    std::string Authenticator::Replier::Name(void)
+    std::string IAuthenticator::Replier::Name(void)
     {
         return _task._name;
     }
     
-    Core::Client::Service& Client::Authenticator::Replier::Service(void)
+    Core::Client::IService& Client::IAuthenticator::Replier::Service(void)
     {
         return *_task._service;
     }
     
-    void Authenticator::Replier::SendPassword(const std::string& username, const std::string& password, const std::optional<std::string>& newPassword)
+    void IAuthenticator::Replier::SendPassword(const std::string& username, const std::string& password, const std::optional<std::string>& newPassword)
     {
         Types::Blob message;
         Types::Writer writer(message);
@@ -72,7 +72,7 @@ namespace Client {
         _task._client->Send(message);
     }
     
-    AuthService::AuthService(Core::Client& owner, std::shared_ptr<Core::Client::Enabler> enabler)
+    AuthService::AuthService(Core::Client& owner, std::shared_ptr<Core::Client::IEnabler> enabler)
     :_running(false), _owner(owner), _authenticator(nullptr)
     {
         enabler->Request("ssh-userauth", this);
@@ -84,7 +84,7 @@ namespace Client {
         _owner.UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
     }
 
-    void AuthService::SetAuthenticator(Authenticator *authenticator)
+    void AuthService::SetAuthenticator(IAuthenticator *authenticator)
     {
         _authenticator = authenticator;
     }
@@ -113,10 +113,9 @@ namespace Client {
             return;
         // Start up!
         Internal::AuthTask &task = _activeTasks.front();
-        Authenticator::Replier replier(task);
-        task.authenticator->Query(&replier, std::nullopt, false);
-
         DEBUG_LOG_STATE(("Requesting auth service: %s\n", task._name.c_str()));
+        IAuthenticator::Replier replier(task);
+        task.authenticator->Query(&replier, std::nullopt, false);
     }
 
     void AuthService::HandlePayload(Types::Blob data)
@@ -127,7 +126,7 @@ namespace Client {
             {
                 Internal::AuthTask &task = _activeTasks.front();
                 task._service->Start();
-                DEBUG_LOG_STATE(("Service accepted\n"));
+                DEBUG_LOG_STATE(("Auth service accepted [%s]\n", task._name.c_str()));
                 _activeTasks.erase(_activeTasks.begin());
                 Next();
             }
@@ -137,7 +136,7 @@ namespace Client {
                 Types::Blob message = reader.ReadString();
                 Types::Blob languageTag = reader.ReadString();
                 Internal::AuthTask &task = _activeTasks.front();
-                Authenticator::Replier replier(task);
+                IAuthenticator::Replier replier(task);
                 task.authenticator->NeedChangePassword(&replier, message.AsString(), languageTag.AsString());
             }
                 break;
@@ -146,7 +145,7 @@ namespace Client {
                 std::vector<std::string> acceptedModes = reader.ReadNameList();
                 bool partialSuccess = reader.ReadBoolean();
                 Internal::AuthTask &task = _activeTasks.front();
-                Authenticator::Replier replier(task);
+                IAuthenticator::Replier replier(task);
                 task.authenticator->Query(&replier, acceptedModes, partialSuccess);
             }
                 break;
@@ -155,14 +154,14 @@ namespace Client {
                 Types::Blob message = reader.ReadString();
                 Types::Blob languageTag = reader.ReadString();
                 Internal::AuthTask &task = _activeTasks.front();
-                Authenticator::Replier replier(task);
+                IAuthenticator::Replier replier(task);
                 task.authenticator->Banner(&replier, message.AsString(), languageTag.AsString());
             }
                 break;
         }
     }
 
-    std::shared_ptr<Core::Client::Enabler> AuthService::AuthEnabler(void)
+    std::shared_ptr<Core::Client::IEnabler> AuthService::AuthEnabler(void)
     {
         if (!_authenticator)
             throw new std::runtime_error("Authenticator not set");

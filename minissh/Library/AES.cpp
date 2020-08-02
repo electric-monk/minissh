@@ -313,7 +313,7 @@ Types::Blob ExpandKey(Types::Blob keyBlob, int rounds)
 }
 
 AES::AES(Types::Blob key)
-:Encryption(key)
+:AEncryption(key)
 {
     switch(key.Length()) {
         case 16:

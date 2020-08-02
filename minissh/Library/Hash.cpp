@@ -14,7 +14,7 @@ namespace minissh::Hash {
 
 namespace {
     
-class SHA1_Token : public Type::Token
+class SHA1_Token : public AType::AToken
 {
 public:
     SHA1_Token()
@@ -48,7 +48,7 @@ Types::Blob SHA1::EMSA_PKCS1_V1_5_Prefix(void) const
     return Types::Blob(prefix, sizeof(prefix));
 }
 
-std::shared_ptr<Type::Token> SHA1::Start(void) const
+std::shared_ptr<AType::AToken> SHA1::Start(void) const
 {
     return std::make_shared<SHA1_Token>();
 }

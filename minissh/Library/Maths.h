@@ -18,13 +18,20 @@ class Blob;
 
 namespace minissh::Maths {
 
-class RandomSource
+/**
+ * Interface for providing random numbers.
+ */
+class IRandomSource
 {
 public:
-    virtual ~RandomSource() = default;
+    virtual ~IRandomSource() = default;
+    
     virtual UInt32 Random(void) = 0;
 };
 
+/**
+ * Arbitrary length integer arithmetic.
+ */
 class BigNumber
 {
 private:
@@ -48,7 +55,7 @@ public:
     BigNumber(const BigNumber &original);
     BigNumber(const void *bytes, UInt32 count, bool checkSign = true);
     BigNumber(const UInt32 *data, UInt32 count, bool reverse = false);
-    BigNumber(UInt32 bits, RandomSource &source, int primeCertainty);
+    BigNumber(UInt32 bits, IRandomSource &source, int primeCertainty);
     ~BigNumber();
     
     Types::Blob Data(void) const;

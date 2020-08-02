@@ -13,7 +13,7 @@
 namespace minissh::HMAC {
 
 // RFC2104: hash(K ^ opad, hash(k ^ ipad, text))
-Types::Blob Calculate(const Hash::Type& hash, Types::Blob key, Types::Blob text)
+Types::Blob Calculate(const Hash::AType& hash, Types::Blob key, Types::Blob text)
 {
     // If key is longer than 64 bytes, hash it
     if (key.Length() > 64) {
@@ -35,7 +35,7 @@ Types::Blob Calculate(const Hash::Type& hash, Types::Blob key, Types::Blob text)
     }
     
     // Do inner hash
-    std::shared_ptr<Hash::Type::Token> innerHash = hash.Start();
+    std::shared_ptr<Hash::AType::AToken> innerHash = hash.Start();
     innerHash->Update(k_ipad, sizeof(k_ipad));
     innerHash->Update(text);
     std::optional<Types::Blob> innerDigest = innerHash->End();
@@ -43,7 +43,7 @@ Types::Blob Calculate(const Hash::Type& hash, Types::Blob key, Types::Blob text)
         throw new std::runtime_error("Couldn't compute inner digest");
     
     // Do outer hash
-    std::shared_ptr<Hash::Type::Token> outerHash = hash.Start();
+    std::shared_ptr<Hash::AType::AToken> outerHash = hash.Start();
     outerHash->Update(k_opad, sizeof(k_opad));
     outerHash->Update(*innerDigest);
     std::optional<Types::Blob> outerDigest = outerHash->End();
