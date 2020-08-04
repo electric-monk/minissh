@@ -47,6 +47,7 @@ class Socket : private BaseSocket, public minissh::Core::Client::IDelegate
 {
 public:
     Socket(const char *host, unsigned short port);
+    Socket(int fd);
 
     void Send(const void *data, minissh::UInt32 length) override;
     void Failed(minissh::Core::Client::PanicReason reason) override;
@@ -57,6 +58,14 @@ public:
 protected:
     void OnEvent(void) override;
 };
+
+class Listener : private BaseSocket
+{
+public:
+    Listener(unsigned short port);
     
-    int _sock;
+    virtual void OnAccepted(std::shared_ptr<Socket> connection) = 0;
+    
+protected:
+    void OnEvent(void) override;
 };

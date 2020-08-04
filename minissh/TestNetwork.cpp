@@ -110,6 +110,11 @@ Socket::Socket(const char *host, unsigned short port)
     session = NULL;
 }
 
+Socket::Socket(int fd)
+{
+    _fd = fd;
+}
+
 void Socket::OnEvent(void)
 {
     char buf[1024];
@@ -134,4 +139,28 @@ void Socket::Failed(minissh::Core::Client::PanicReason reason)
 {
     fprintf(stderr, "Failure [%i]: %s\n", reason, minissh::Core::Client::StringForPanicReason(reason).c_str());
     exit(-1);
+}
+
+Listener::Listener(unsigned short port)
+{
+    _fd = socket(PF_INET, SOCK_STREAM, 0);
+    struct sockaddr_in isa = getipa("0.0.0.0", port);
+    if (bind(_fd, (struct sockaddr*)&isa, sizeof isa) < 0) {
+        fprintf(stderr, "Error binding\n");
+        exit(-10);
+    }
+    listen(_fd, 5);
+}
+
+void Listener::OnEvent(void)
+{
+    struct sockaddr_in isa;
+    socklen_t isa_size = sizeof isa;
+    int fd = accept(_fd, (struct sockaddr *)&isa, &isa_size);
+    if (fd < 0) {
+        fprintf(stderr, "Error on accept\n");
+        exit(-11);
+    }
+    printf("Accepted connection from %s:%i\n", inet_ntoa(isa.sin_addr), ntohs(isa.sin_port));
+    OnAccepted(std::make_shared<Socket>(fd));
 }
