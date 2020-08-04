@@ -38,6 +38,12 @@
 		3B7D1BDB1C438B4100C380C9 /* Transport.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B7D1BD91C438B4100C380C9 /* Transport.cpp */; };
 		3B7D1BDC1C438B4100C380C9 /* Transport.h in Headers */ = {isa = PBXBuildFile; fileRef = 3B7D1BDA1C438B4100C380C9 /* Transport.h */; };
 		3BC49EDC24D7550D00312430 /* SshNumbers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EDB24D7550C00312430 /* SshNumbers.cpp */; };
+		3BC49EEB24D92C7900312430 /* TestRandom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE924D92C7900312430 /* TestRandom.cpp */; };
+		3BC49EEC24D92C7900312430 /* TestRandom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE924D92C7900312430 /* TestRandom.cpp */; };
+		3BC49EF324D92E5000312430 /* TestNetwork.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF124D92E5000312430 /* TestNetwork.cpp */; };
+		3BC49EF424D92E5000312430 /* TestNetwork.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF124D92E5000312430 /* TestNetwork.cpp */; };
+		3BC49EF724D92E6400312430 /* TestUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF524D92E6400312430 /* TestUtils.cpp */; };
+		3BC49EF824D92E6400312430 /* TestUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF524D92E6400312430 /* TestUtils.cpp */; };
 		3BECB18924989755004798E5 /* Base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BECB18724989755004798E5 /* Base64.cpp */; };
 		3BECB18A24989755004798E5 /* Base64.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BECB18824989755004798E5 /* Base64.h */; };
 		3BECB18D2498C8BA004798E5 /* DerFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BECB18B2498C8BA004798E5 /* DerFile.cpp */; };
@@ -115,6 +121,12 @@
 		3B7D1BD91C438B4100C380C9 /* Transport.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Transport.cpp; path = minissh/Library/Transport.cpp; sourceTree = "<group>"; };
 		3B7D1BDA1C438B4100C380C9 /* Transport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Transport.h; path = minissh/Library/Transport.h; sourceTree = "<group>"; };
 		3BC49EDB24D7550C00312430 /* SshNumbers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SshNumbers.cpp; path = minissh/Library/SshNumbers.cpp; sourceTree = "<group>"; };
+		3BC49EE924D92C7900312430 /* TestRandom.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TestRandom.cpp; path = minissh/TestRandom.cpp; sourceTree = SOURCE_ROOT; };
+		3BC49EEA24D92C7900312430 /* TestRandom.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = TestRandom.h; path = minissh/TestRandom.h; sourceTree = SOURCE_ROOT; };
+		3BC49EF124D92E5000312430 /* TestNetwork.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TestNetwork.cpp; path = minissh/TestNetwork.cpp; sourceTree = SOURCE_ROOT; };
+		3BC49EF224D92E5000312430 /* TestNetwork.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = TestNetwork.h; path = minissh/TestNetwork.h; sourceTree = SOURCE_ROOT; };
+		3BC49EF524D92E6400312430 /* TestUtils.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TestUtils.cpp; path = minissh/TestUtils.cpp; sourceTree = SOURCE_ROOT; };
+		3BC49EF624D92E6400312430 /* TestUtils.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = TestUtils.h; path = minissh/TestUtils.h; sourceTree = SOURCE_ROOT; };
 		3BECB1862494B320004798E5 /* BaseTypes.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = BaseTypes.h; path = minissh/Library/BaseTypes.h; sourceTree = "<group>"; };
 		3BECB18724989755004798E5 /* Base64.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Base64.cpp; path = minissh/Library/Base64.cpp; sourceTree = "<group>"; };
 		3BECB18824989755004798E5 /* Base64.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Base64.h; path = minissh/Library/Base64.h; sourceTree = "<group>"; };
@@ -157,6 +169,7 @@
 				3B40C5171C55F850004DA8E5 /* libSystem.dylib */,
 				3B7D1BC71C42FBFD00C380C9 /* Library */,
 				3B7D1BB21C42FB8F00C380C9 /* Client */,
+				3BC49EE824D92C4F00312430 /* Misc */,
 				3B7D1BB11C42FB8F00C380C9 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -232,6 +245,19 @@
 				3BECB19024A0993D004798E5 /* KeyFile.h */,
 			);
 			name = Library;
+			sourceTree = "<group>";
+		};
+		3BC49EE824D92C4F00312430 /* Misc */ = {
+			isa = PBXGroup;
+			children = (
+				3BC49EE924D92C7900312430 /* TestRandom.cpp */,
+				3BC49EEA24D92C7900312430 /* TestRandom.h */,
+				3BC49EF124D92E5000312430 /* TestNetwork.cpp */,
+				3BC49EF224D92E5000312430 /* TestNetwork.h */,
+				3BC49EF524D92E6400312430 /* TestUtils.cpp */,
+				3BC49EF624D92E6400312430 /* TestUtils.h */,
+			);
+			path = Misc;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -333,7 +359,10 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3BC49EEB24D92C7900312430 /* TestRandom.cpp in Sources */,
+				3BC49EF324D92E5000312430 /* TestNetwork.cpp in Sources */,
 				3B7D1BB41C42FB8F00C380C9 /* main.cpp in Sources */,
+				3BC49EF724D92E6400312430 /* TestUtils.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
