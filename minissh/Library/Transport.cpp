@@ -479,10 +479,10 @@ bool Packet::CheckMAC(UInt32 sequenceNumber) const
     return MAC().Compare(mac->Generate(macPacket));
 }
 
-Transport::Transport(Maths::IRandomSource& source)
+Transport::Transport(Maths::IRandomSource& source, Mode transportType)
 :random(source)
 {
-    mode = Client;
+    mode = transportType;
     
     encryptionToClient = std::make_shared<NoEncryption>();
     encryptionToServer = encryptionToClient;

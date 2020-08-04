@@ -285,7 +285,7 @@ public:
     // TODO; disable/etc.
 
 public:
-    Transport(Maths::IRandomSource& source);
+    Transport(Maths::IRandomSource& source, Mode transportType);
     
     // Network interface
     void SetDelegate(IDelegate* delegate);

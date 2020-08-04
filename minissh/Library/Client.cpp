@@ -95,7 +95,7 @@ namespace {
 } // namespace
 
 Client::Client(Maths::IRandomSource& source)
-:Transport(source), _enabler(std::make_shared<DefaultEnablerImpl>(*this))
+:Transport(source, ::minissh::Transport::Mode::Client), _enabler(std::make_shared<DefaultEnablerImpl>(*this))
 {
 }
 
