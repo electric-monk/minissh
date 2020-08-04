@@ -367,6 +367,8 @@ std::string Transport::StringForPanicReason(PanicReason reason)
             return "Bad host key";
         case PanicReason::BadSignature:
             return "Bad signature";
+        case PanicReason::NoHostKey:
+            return "No host key";
     }
 }
     

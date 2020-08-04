@@ -23,6 +23,8 @@ public:
     
     void HandlePayload(Types::Blob data) override;
     
+    void SetHostKey(Types::Blob hostKey);   // Only for Server state, when one must be provided
+    
 protected:
     ~Base();
     

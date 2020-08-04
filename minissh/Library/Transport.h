@@ -252,6 +252,7 @@ public:
         NoMatchingAlgorithm,
         BadHostKey,
         BadSignature,
+        NoHostKey,
     };
     static std::string StringForPanicReason(PanicReason reason);
     

@@ -38,6 +38,13 @@ Base::~Base()
     _owner.UnregisterForPackets(&message, 1);
 }
 
+void Base::SetHostKey(Types::Blob hostKey)
+{
+    if (_mode != Transport::Server)
+        throw new std::invalid_argument("Only server may set host key");
+    _hostKey = hostKey;
+}
+    
 Types::Blob Base::MakeHash(void)
 {
     Types::Blob input;
@@ -98,13 +105,28 @@ void Base::HandlePayload(Types::Blob data)
         case KEXDH_INIT:
             if (_mode != Transport::Server)
                 _owner.Panic(Transport::Transport::PanicReason::InvalidMessage);
+            if (!_hostKey.Length())
+                _owner.Panic(Transport::Transport::PanicReason::NoHostKey);
             _e = reader.ReadMPInt();
             // Compute key
-//            if (!CheckRange(_e))
-//                _owner.Panic(Transport::Transport::PanicReason::OutOfRange);
+            if (!CheckRange(_e))
+                _owner.Panic(Transport::Transport::PanicReason::OutOfRange);
             key = _e.PowerMod(_xy, _p);
+            // Generate keys
+            GenerateKeys();
+            // Calculate hash
+            exchangeHash = MakeHash();
+            if (!_owner.sessionID)
+                _owner.sessionID = exchangeHash;
             // Reply
-            
+        {
+            Types::Blob reply;
+            Types::Writer writer(reply);
+            writer.WriteString(_hostKey);
+            writer.Write(_f);
+            writer.WriteString(exchangeHash);
+            _owner.Send(reply);
+        }
             break;
         case KEXDH_REPLY:
             if (_mode != Transport::Client)
