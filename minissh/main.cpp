@@ -54,7 +54,7 @@ int main(int argc, const char * argv[])
     uint16_t portnum = 22;
     if (argc == 3)
         portnum = atoi(argv[2]);
-    SocketTest *test = new SocketTest(argv[1], portnum);
+    Socket *test = new Socket(argv[1], portnum);
     TestRandom randomiser;
     minissh::Core::Client client(randomiser);
     test->transport = &client;
@@ -66,9 +66,10 @@ int main(int argc, const char * argv[])
     minissh::Core::Connection connection(client, auth->AuthEnabler());
     std::shared_ptr<minissh::Core::Session> session = std::make_shared<minissh::Core::Session>(connection);
     connection.OpenChannel(session);
+    Stdin stdinRead(session.get());
     test->session = session;
     test->transport->Start();
-    test->Run();
+    BaseFD::Run();
     
     return 0;
 }
