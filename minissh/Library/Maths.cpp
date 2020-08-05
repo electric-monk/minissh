@@ -25,7 +25,7 @@ BigNumber EuclideanGCD(const BigNumber& a, const BigNumber& b, BigNumber& x, Big
     }
     BigNumber x1, y1;
     BigNumber gcd = EuclideanGCD(b % a, a, x1, y1);
-    x = y1 - (b / a ) * x1;
+    x = y1 - (b / a) * x1;
     y = x1;
     return gcd;
 }
@@ -381,6 +381,7 @@ void BigNumber::_Divide(const BigNumber &other, BigNumber *remainder)
         delete[] remainder->_digits;
         remainder->_digits = r;
         remainder->_count = n;
+        remainder->_positive = _positive;   // % is remainder, not modulus, so sign should always follow us
     }
     
     // Take care of single digit divisor here
@@ -568,7 +569,7 @@ int BigNumber::BitLength(void) const
     return (_count * sizeofEntry) - (sizeofEntry - i) - (_positive ? 0 : 1);
 }
 
-int BigNumber::AsInt(void)
+int BigNumber::AsInt(void) const
 {
     if (_count > 1)
         throw "Error";
@@ -657,8 +658,7 @@ BigNumber BigNumber::ModularInverse(const BigNumber& m)
     BigNumber x, y;
     if (EuclideanGCD(*this, m, x, y) != 1)
         throw std::runtime_error("Not reversible");
-    else
-        return (x % m + m) % m;
+    return (x % m + m) % m;
 }
 
     

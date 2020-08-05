@@ -75,7 +75,7 @@ public:
     bool IsProbablePrime(int certainty);
     int GetLowestSetBit(void);
     int BitLength(void) const;
-    int AsInt(void);
+    int AsInt(void) const;
     
     // A big pile of operators
     
@@ -183,8 +183,7 @@ public:
     BigNumber& operator/=(const BigNumber &rightSide)
     {
         _Divide(rightSide, NULL);
-        if (_positive != rightSide._positive)
-            _positive = false;
+        _positive = _positive == rightSide._positive;
         return *this;
     }
     friend BigNumber operator/(BigNumber leftSide, const BigNumber &rightSide)
