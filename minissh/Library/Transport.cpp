@@ -273,6 +273,12 @@ namespace Internal {
             const Byte messages[] = {KEXINIT, NEWKEYS};
             _owner.UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
         }
+        
+        void Start(void)
+        {
+            // Send KEXINIT unsolicited, which is fine
+            SendKex();
+        }
 
         void HandlePayload(Types::Blob data) override
         {
@@ -555,6 +561,9 @@ void Transport::Start(void)
     TestPrint(Local(), local.version);
     // Send whole blob
     _delegate->Send(sending.Value(), sending.Length());
+    // Send kexinit
+    if (mode == Mode::Server)
+        kexHandler->Start();
 }
 
 void Transport::SetDelegate(IDelegate *delegate)
