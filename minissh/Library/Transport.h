@@ -338,6 +338,14 @@ public:
     {
         return (mode == Client) ? macToServer : macToClient;
     }
+    inline char Local(void) const
+    {
+        return (mode == Client) ? 'C' : 'S';
+    }
+    inline char Remote(void) const
+    {
+        return (mode == Client) ? 'S' : 'C';
+    }
 
 private:
     IDelegate *_delegate = nullptr;

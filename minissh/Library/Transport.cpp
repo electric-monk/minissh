@@ -133,7 +133,7 @@ namespace Internal {
                 std::optional<std::string> line = _owner.inputBuffer.FindLine();
                 if (!line)
                     return;
-                TestPrint('S', *line);
+                TestPrint(_owner.Remote(), *line);
                 if (MatchStringStart(*line, ssh, (int)strlen(ssh))) {
                     _owner.InitialiseSSH(*line, _message);
                     return;
@@ -545,14 +545,14 @@ void Transport::Start(void)
         for (const std::string& line : local.message) {
             sending.Append((Byte*)line.c_str(), (int)line.size());
             sending.Append(crlf, (int)sizeof(crlf));
-            TestPrint('C', line);
+            TestPrint(Local(), line);
         }
     }
     // Transmit SSH start
     local.version = std::string(Internal::ssh_ident, (int)strlen(Internal::ssh_ident));
     sending.Append((Byte*)local.version.c_str(), (int)local.version.size());
     sending.Append(crlf, (int)sizeof(crlf));
-    TestPrint('C', local.version);
+    TestPrint(Local(), local.version);
     // Send whole blob
     _delegate->Send(sending.Value(), sending.Length());
 }
@@ -597,7 +597,7 @@ void Transport::HandlePacket(Packet block)
     Types::Reader reader(packet);
     Byte message = reader.ReadByte();
     IMessageHandler *handler = _packeters[message];
-    DEBUG_LOG_TRANSFER(("S> message %s[%i]: %i bytes (%i total): %s\n", StringForSSHNumber(SSHMessages(message)).c_str(), message, packet.Length(), block.Length(), handler?"handled":"unclaimed"));
+    DEBUG_LOG_TRANSFER(("%c> message %s[%i]: %i bytes (%i total): %s\n", Remote(), StringForSSHNumber(SSHMessages(message)).c_str(), message, packet.Length(), block.Length(), handler?"handled":"unclaimed"));
 #ifdef DEBUG_LOG_CONTENT
     block.DebugDump();
 #endif
@@ -647,7 +647,7 @@ void Transport::Send(Types::Blob payload)
         }
     }
 
-    DEBUG_LOG_TRANSFER(("C> message %s[%i]: %i bytes (%i total)\n",
+    DEBUG_LOG_TRANSFER(("%c> message %s[%i]: %i bytes (%i total)\n", Local(),
         StringForSSHNumber(SSHMessages(payload.Value()[0])).c_str(), payload.Value()[0],
         payload.Length(), packet.Length() + GetOutgoingHMAC()->Length()));
 #ifdef DEBUG_LOG_CONTENT
