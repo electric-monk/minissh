@@ -36,12 +36,12 @@ bool SSH_RSA::Verify(Files::Format::IKeyFile& keyFile, Types::Blob signature, Ty
     return RSA::SSA_PKCS1_V1_5::Verify(publicKey->PublicKey(), exchangeHash, signatureBlob, Hash::SHA1());
 }
 
-Types::Blob SSH_RSA::Compute(Files::Format::IKeyFile& keyFile, Types::Blob exchangeHash)
+Types::Blob SSH_RSA::Compute(Files::Format::IKeyFile& keyFile, Types::Blob message)
 {
     RSA::KeySet *privateKey = dynamic_cast<RSA::KeySet*>(&keyFile);
     if (!privateKey)
         throw new std::runtime_error("Unsupported private key");
-    std::optional<Types::Blob> signature = RSA::SSA_PKCS1_V1_5::Sign(privateKey->PrivateKey(), exchangeHash, Hash::SHA1());
+    std::optional<Types::Blob> signature = RSA::SSA_PKCS1_V1_5::Sign(privateKey->PrivateKey(), message, Hash::SHA1());
     if (!signature)
         throw new std::runtime_error("Unable to sign");
     Types::Blob result;

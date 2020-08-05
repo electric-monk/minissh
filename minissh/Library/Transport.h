@@ -107,7 +107,7 @@ public:
     /**
      * For a server, compute the signature.
      */
-    virtual Types::Blob Compute(Files::Format::IKeyFile& keyFile, Types::Blob exchangeHash) = 0;
+    virtual Types::Blob Compute(Files::Format::IKeyFile& keyFile, Types::Blob message) = 0;
 };
 
 /**

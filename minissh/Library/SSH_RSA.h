@@ -22,7 +22,7 @@ public:
     SSH_RSA(Transport::Transport& owner, Transport::Mode mode);
     bool Confirm(Files::Format::IKeyFile& remoteHostKeyFile) override;
     bool Verify(Files::Format::IKeyFile& remoteHostKeyFile, Types::Blob signature, Types::Blob exchangeHash) override;
-    Types::Blob Compute(Files::Format::IKeyFile& localHostKeyFile, Types::Blob exchangeHash) override;
+    Types::Blob Compute(Files::Format::IKeyFile& localHostKeyFile, Types::Blob message) override;
 
     static constexpr char Name[] = "ssh-rsa";
     class Factory : public Transport::Configuration::Instantiatable<SSH_RSA, Transport::IHostKeyAlgorithm>
