@@ -713,7 +713,10 @@ void KeyExchanger::GenerateKeys(void)
     printf("E:\n"); integrityKeyC2S.DebugDump();
     printf("F:\n"); integrityKeyS2C.DebugDump();
 #endif
-    
+}
+
+void KeyExchanger::NewKeys(void)
+{
     // Now we have keys, switch!
     Types::Blob message;
     Types::Writer writer(message);

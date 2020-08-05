@@ -23,8 +23,6 @@ public:
     
     void HandlePayload(Types::Blob data) override;
     
-    void SetHostKey(Types::Blob hostKey);   // Only for Server state, when one must be provided
-    
 protected:
     ~Base();
     
@@ -35,7 +33,7 @@ private:
 
     Maths::BigNumber _e, _f;
     
-    Types::Blob _hostKey;
+    std::shared_ptr<Files::Format::IKeyFile> _hostKey;
     
     bool CheckRange(const Maths::BigNumber &number);
     Types::Blob MakeHash(void);

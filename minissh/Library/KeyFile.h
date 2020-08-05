@@ -96,4 +96,14 @@ std::shared_ptr<IKeyFile> LoadKeys(Types::Blob input);
  */
 Types::Blob SaveKeys(std::shared_ptr<IKeyFile> keys, FileType type, bool isPrivate /* versus public */);
     
+/**
+ * Function to load a key from an SSH blob.
+ */
+std::shared_ptr<IKeyFile> LoadSSHKeys(Types::Blob sshInput);
+    
+/**
+ * Function to save a key to an SSH blob.
+ */
+Types::Blob SaveSSHKeys(std::shared_ptr<IKeyFile> keys, bool isPrivate /* versus public */);
+    
 } // namespace minissh::Files::Format

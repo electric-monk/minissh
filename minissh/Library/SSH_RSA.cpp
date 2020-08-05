@@ -16,29 +16,39 @@ SSH_RSA::SSH_RSA(Transport::Transport& owner, Transport::Mode mode)
 {
 }
 
-bool SSH_RSA::Confirm(Types::Blob hostKey)
+bool SSH_RSA::Confirm(Files::Format::IKeyFile& keyFile)
 {
     // TODO: _owner->delegate->Confirm
     return true;
 }
 
-bool SSH_RSA::Verify(Types::Blob hostKey, Types::Blob signature, Types::Blob exchangeHash)
+bool SSH_RSA::Verify(Files::Format::IKeyFile& keyFile, Types::Blob signature, Types::Blob exchangeHash)
 {
-    Types::Reader hostKeyReader(hostKey);
-    std::string tag = hostKeyReader.ReadString().AsString();
-    if (tag.compare("ssh-rsa") != 0)
+    RSA::KeyPublic *publicKey = dynamic_cast<RSA::KeyPublic*>(&keyFile);
+    if (!publicKey)
         return false;
-    Maths::BigNumber e = hostKeyReader.ReadMPInt();
-    Maths::BigNumber n = hostKeyReader.ReadMPInt();
-    RSA::Key key(n, e);
     
     Types::Reader signatureReader(signature);
-    std::string tag2 = signatureReader.ReadString().AsString();
-    if (tag2.compare("ssh-rsa") != 0)
+    if (signatureReader.ReadString().AsString().compare(Name) != 0)
         return false;
     Types::Blob signatureBlob = signatureReader.ReadString();
     
-    return RSA::SSA_PKCS1_V1_5::Verify(key, exchangeHash, signatureBlob, Hash::SHA1());
+    return RSA::SSA_PKCS1_V1_5::Verify(publicKey->PublicKey(), exchangeHash, signatureBlob, Hash::SHA1());
+}
+
+Types::Blob SSH_RSA::Compute(Files::Format::IKeyFile& keyFile, Types::Blob exchangeHash)
+{
+    RSA::KeySet *privateKey = dynamic_cast<RSA::KeySet*>(&keyFile);
+    if (!privateKey)
+        throw new std::runtime_error("Unsupported private key");
+    std::optional<Types::Blob> signature = RSA::SSA_PKCS1_V1_5::Sign(privateKey->PrivateKey(), exchangeHash, Hash::SHA1());
+    if (!signature)
+        throw new std::runtime_error("Unable to sign");
+    Types::Blob result;
+    Types::Writer writer(result);
+    writer.WriteString(Name);
+    writer.WriteString(*signature);
+    return result;
 }
 
 } // namespace minissh::Algoriths

@@ -20,8 +20,9 @@ class SSH_RSA : public Transport::IHostKeyAlgorithm
 {
 public:
     SSH_RSA(Transport::Transport& owner, Transport::Mode mode);
-    bool Confirm(Types::Blob hostKey) override;
-    bool Verify(Types::Blob hostKey, Types::Blob signature, Types::Blob exchangeHash) override;
+    bool Confirm(Files::Format::IKeyFile& remoteHostKeyFile) override;
+    bool Verify(Files::Format::IKeyFile& remoteHostKeyFile, Types::Blob signature, Types::Blob exchangeHash) override;
+    Types::Blob Compute(Files::Format::IKeyFile& localHostKeyFile, Types::Blob exchangeHash) override;
 
     static constexpr char Name[] = "ssh-rsa";
     class Factory : public Transport::Configuration::Instantiatable<SSH_RSA, Transport::IHostKeyAlgorithm>

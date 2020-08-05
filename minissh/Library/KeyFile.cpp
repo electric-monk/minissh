@@ -173,4 +173,22 @@ Types::Blob SaveKeys(std::shared_ptr<IKeyFile> keys, FileType type, bool isPriva
     return result;
 }
 
+std::shared_ptr<IKeyFile> LoadSSHKeys(Types::Blob sshInput)
+{
+    Types::Blob copy(sshInput);
+    Types::Reader reader(copy);
+    std::string name = reader.ReadString().AsString();
+    KeyFileLoaderImpl *impl = EnumerateKeyFileLoaders([name](KeyFileLoaderImpl& loader){
+        return loader._name.compare(name) == 0;
+    }, FileType::SSH);
+    if (impl)
+        return impl->Execute(sshInput);
+    throw new std::runtime_error("Unknown format");
+}
+
+Types::Blob SaveSSHKeys(std::shared_ptr<IKeyFile> keys, bool isPrivate)
+{
+    return isPrivate ? keys->SavePrivate(FileType::SSH) : keys->SavePublic(FileType::SSH);
+}
+
 } // namespace minissh::Files::Format

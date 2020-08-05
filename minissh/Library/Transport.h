@@ -11,6 +11,7 @@
 #include <map>
 #include "Types.h"
 #include "Hash.h"
+#include "KeyFile.h"
 
 namespace minissh::Maths {
 class IRandomSource;
@@ -68,6 +69,7 @@ public:
     virtual void Start(void) = 0;
     
     void GenerateKeys(void);
+    void NewKeys(void);
     Types::Blob ExtendKey(Types::Blob baseKey, UInt32 requiredLength);
     
     Maths::BigNumber key;
@@ -97,10 +99,15 @@ public:
      * Confirm that a host key is acceptable (usually checking the key against a database in the local machine, or
      * asking the user about it).
      */
-    virtual bool Confirm(Types::Blob hostKey) = 0;
+    virtual bool Confirm(Files::Format::IKeyFile& keyFile) = 0;
     
     /** Confirm the signature is valid. */
-    virtual bool Verify(Types::Blob hostKey, Types::Blob signature, Types::Blob exchangeHash) = 0;
+    virtual bool Verify(Files::Format::IKeyFile& keyFile, Types::Blob signature, Types::Blob exchangeHash) = 0;
+    
+    /**
+     * For a server, compute the signature.
+     */
+    virtual Types::Blob Compute(Files::Format::IKeyFile& keyFile, Types::Blob exchangeHash) = 0;
 };
 
 /**
@@ -266,6 +273,8 @@ public:
         
         virtual void Send(const void *data, UInt32 length) = 0;
         virtual void Failed(PanicReason reason) = 0;
+        // For servers
+        virtual std::shared_ptr<Files::Format::IKeyFile> GetHostKey(void) { throw new std::runtime_error("Not implemented"); }
     };
     
     // Internal
@@ -275,6 +284,7 @@ public:
     void HandlePacket(Packet block);
     void ResetAlgorithms(bool local);
     virtual void KeysChanged(void);
+    std::shared_ptr<Files::Format::IKeyFile> GetHostKey(void) { return _delegate->GetHostKey(); }
     
     void Send(Types::Blob payload);
     void Panic(PanicReason r);

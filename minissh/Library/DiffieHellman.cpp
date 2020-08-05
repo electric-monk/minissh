@@ -38,13 +38,6 @@ Base::~Base()
     _owner.UnregisterForPackets(&message, 1);
 }
 
-void Base::SetHostKey(Types::Blob hostKey)
-{
-    if (_mode != Transport::Server)
-        throw new std::invalid_argument("Only server may set host key");
-    _hostKey = hostKey;
-}
-    
 Types::Blob Base::MakeHash(void)
 {
     Types::Blob input;
@@ -56,7 +49,7 @@ Types::Blob Base::MakeHash(void)
     writer.WriteString(server.version);
     writer.WriteString(client.kexPayload);
     writer.WriteString(server.kexPayload);
-    writer.WriteString(_hostKey);
+    writer.WriteString(SaveSSHKeys(_hostKey, false));
     writer.Write(_e);
     writer.Write(_f);
     writer.Write(key);
@@ -103,37 +96,43 @@ void Base::HandlePayload(Types::Blob data)
     
     switch (reader.ReadByte()) {
         case KEXDH_INIT:
+            _hostKey = _owner.GetHostKey();
             if (_mode != Transport::Server)
                 _owner.Panic(Transport::Transport::PanicReason::InvalidMessage);
-            if (!_hostKey.Length())
+            if (!_hostKey)
                 _owner.Panic(Transport::Transport::PanicReason::NoHostKey);
             _e = reader.ReadMPInt();
             // Compute key
             if (!CheckRange(_e))
                 _owner.Panic(Transport::Transport::PanicReason::OutOfRange);
             key = _e.PowerMod(_xy, _p);
-            // Generate keys
-            GenerateKeys();
             // Calculate hash
             exchangeHash = MakeHash();
             if (!_owner.sessionID)
                 _owner.sessionID = exchangeHash;
+            // Generate keys
+            GenerateKeys();
             // Reply
         {
             Types::Blob reply;
             Types::Writer writer(reply);
-            writer.WriteString(_hostKey);
+            writer.Write(KEXDH_REPLY);
+            writer.WriteString(Files::Format::SaveSSHKeys(_hostKey, false));
             writer.Write(_f);
-            writer.WriteString(exchangeHash);
+            writer.WriteString(_owner.hostKeyAlgorithm->Compute(*_hostKey, exchangeHash));
             _owner.Send(reply);
         }
+            // After replying, generate 'new keys' message indicating we want to use new keys, and start using them
+            NewKeys();
             break;
         case KEXDH_REPLY:
             if (_mode != Transport::Client)
                 _owner.Panic(Transport::Transport::PanicReason::InvalidMessage);
-            _hostKey = reader.ReadString();
+            _hostKey = Files::Format::LoadSSHKeys(reader.ReadString());
+            if (!_hostKey)
+                _owner.Panic(Transport::Transport::PanicReason::BadHostKey);
             _f = reader.ReadMPInt();
-            Types::Blob _signature = reader.ReadString();
+            Types::Blob signature = reader.ReadString();
             // Compute key
             if (!CheckRange(_f))
                 _owner.Panic(Transport::Transport::PanicReason::OutOfRange);
@@ -143,16 +142,17 @@ void Base::HandlePayload(Types::Blob data)
             if (!_owner.sessionID)
                 _owner.sessionID = exchangeHash;
             // Check signature
-            if (!_owner.hostKeyAlgorithm->Confirm(_hostKey)) {
+            if (!_owner.hostKeyAlgorithm->Confirm(*_hostKey)) {
                 _owner.Panic(Transport::Transport::PanicReason::BadHostKey);
                 return;
             }
-            if (!_owner.hostKeyAlgorithm->Verify(_hostKey, _signature, exchangeHash)) {
+            if (!_owner.hostKeyAlgorithm->Verify(*_hostKey, signature, exchangeHash)) {
                 _owner.Panic(Transport::Transport::PanicReason::BadSignature);
                 return;
             }
-            // Now we have the key, we can activate it
+            // Now we have the hash, we can calculate the keys, and activate them
             GenerateKeys();
+            NewKeys();
             break;
     }
 }
