@@ -482,6 +482,9 @@ bool Packet::CheckMAC(UInt32 sequenceNumber) const
 Transport::Transport(Maths::IRandomSource& source, Mode transportType)
 :random(source)
 {
+    for (int i = 0; i < 256; i++)
+        _packeters[i] = nullptr;
+
     mode = transportType;
     
     encryptionToClient = std::make_shared<NoEncryption>();
