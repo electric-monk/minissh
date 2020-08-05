@@ -166,7 +166,7 @@ Key::Key(Maths::BigNumber n, Maths::BigNumber e)
 }
 
 // 5.2.1 RSASP1
-Maths::BigNumber RSASP1(Key key, Maths::BigNumber m)
+Maths::BigNumber RSASP1(const Key& key, const Maths::BigNumber& m)
 {
     // 1. If the message representative m is not between 0 and n - 1,
     //    output "message representative out of range" and stop.
@@ -409,9 +409,9 @@ Maths::BigNumber OS2IP(Types::Blob blob)
     return Maths::BigNumber(blob.Value(), blob.Length(), false);
 }
 
-Types::Blob I2OSP(Maths::BigNumber value, int k)
+Types::Blob I2OSP(const Maths::BigNumber& value, int k)
 {
-    Types::Blob result;
+    Types::Blob result = value.Data();
     if (result.Length() < k) {
         // Pad with 0
         Types::Blob newResult;
@@ -422,12 +422,8 @@ Types::Blob I2OSP(Maths::BigNumber value, int k)
         newResult.Append(result.Value(), result.Length());
         result = newResult;
     }
-    if (result.Length() > k) { // Unlikely this is required anymore
-        int remove = result.Length() - k;
-        Types::Blob stripped;
-        stripped.Append(result.Value() + remove, result.Length() - remove);
-        result = stripped;
-    }
+    if (result.Length() > k) // Unlikely this is required anymore
+        result.Strip(0, result.Length() - k);
     return result;
 }
 
@@ -498,22 +494,7 @@ bool SSA_PKCS1_V1_5::Verify(const Key& publicKey, Types::Blob M, Types::Blob S, 
     //          EM = I2OSP (m, k).
     //       If I2OSP outputs "integer too large," output "invalid
     //       signature" and stop.
-    Types::Blob EM = m.Data();
-    if (EM.Length() < k) {
-        // Pad with 0
-        Types::Blob newEM;
-        Byte zero = 0;
-        int required = k - EM.Length();
-        for (int i = 0; i < required; i++)
-            newEM.Append(&zero, 1);
-        newEM.Append(EM.Value(), EM.Length());
-        EM = newEM;
-    }
-    if (EM.Length() > k) { // Unlikely this is required anymore
-        int remove = EM.Length() - k;
-        Types::Blob stripped(EM.Value() + remove, EM.Length() - remove);
-        EM = stripped;
-    }
+    Types::Blob EM = I2OSP(m, k);
     
     // 3. EMSA-PKCS1-v1_5 encoding: Apply the EMSA-PKCS1-v1_5 encoding
     //    operation (Section 9.2) to the message M to produce a second
