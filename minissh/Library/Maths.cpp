@@ -148,6 +148,9 @@ BigNumber BigNumber::GCD(const BigNumber& b, BigNumber& x, BigNumber& y) const
 
 int BigNumber::Compare(const BigNumber &other) const
 {
+    // TODO: Fix negative zero sneaking in
+    if ((_count == 1) && (_digits[0] == 0) && (other._count == 1) && (other._digits[0] == 0))
+        return 0;
     if (_positive && !other._positive)
         return -1;
     if (!_positive && other._positive)
