@@ -297,8 +297,8 @@ BigNumber& BigNumber::operator<<=(const BigNumber &rightSide)
         int revshift = bitcount - amount;
         for (int i = 0; i != _count; i++) {
             DigitType value = _digits[i];
-            DigitType nextSaved = value & (((1 << amount) - 1) << revshift);
-            _digits[i] = (value << amount) | (saved >> revshift);
+            DigitType nextSaved = value & (((UInt64(1) << amount) - 1) << revshift);
+            _digits[i] = UInt32(UInt64(value) << amount) | (saved >> revshift);
             saved = nextSaved;
         }
         remains -= amount;
