@@ -135,6 +135,17 @@ BigNumber::~BigNumber()
     delete[] _digits;
 }
 
+BigNumber BigNumber::GCD(const BigNumber& b) const
+{
+    BigNumber x, y;
+    return EuclideanGCD(*this, b, x, y);
+}
+
+BigNumber BigNumber::GCD(const BigNumber& b, BigNumber& x, BigNumber& y) const
+{
+    return EuclideanGCD(*this, b, x, y);
+}
+
 int BigNumber::Compare(const BigNumber &other) const
 {
     if (_positive && !other._positive)
@@ -268,20 +279,23 @@ BigNumber& BigNumber::operator>>=(const BigNumber &rightSide)
 
 BigNumber& BigNumber::operator<<=(const BigNumber &rightSide)
 {
+    int bitcount = sizeof(DigitType) * 8;
+    
     BigNumber remains = rightSide;
     
     BigNumber extraCount = (remains + (sizeof(DigitType) * 8) - 1) / sizeof(DigitType);
     Expand(_count + extraCount.AsInt());
     
     while (remains != 0) {
-        int amount = sizeof(DigitType) * 8;
+        int amount = bitcount;
         if (BigNumber(amount) > remains)
             amount = remains.AsInt();
         DigitType saved = 0;
+        int revshift = bitcount - amount;
         for (int i = 0; i != _count; i++) {
             DigitType value = _digits[i];
-            DigitType nextSaved = value & (((1 << amount) - 1) << (sizeof(DigitType) - amount));
-            _digits[i] = (value << amount) | (saved >> (sizeof(DigitType) - amount));
+            DigitType nextSaved = value & (((1 << amount) - 1) << revshift);
+            _digits[i] = (value << amount) | (saved >> revshift);
             saved = nextSaved;
         }
         remains -= amount;
@@ -493,6 +507,15 @@ BigNumber BigNumber::PowerMod(const BigNumber &pow, const BigNumber &mod) const
         (t * t)._Divide(mod, &t);
     }
     return s;
+}
+ 
+BigNumber BigNumber::SquareRoot(void) const
+{
+    if (*this < BigNumber(2))
+        return *this;
+    BigNumber small = (*this >> 2).SquareRoot() << 1;
+    BigNumber large = small + 1;
+    return ((large * large) > *this) ? small : large;
 }
 
 const UInt32 k[] = {100,150,200,250,300,350,400,500,600,800,1250, 0xFFFFFFFF};

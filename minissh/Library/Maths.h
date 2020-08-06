@@ -71,6 +71,9 @@ public:
     }
     BigNumber PowerMod(const BigNumber &pow, const BigNumber &mod) const;
     BigNumber ModularInverse(const BigNumber &m);
+    BigNumber GCD(const BigNumber& b) const;
+    BigNumber GCD(const BigNumber& b, BigNumber& x, BigNumber& y) const;
+    BigNumber SquareRoot(void) const;
 
     bool IsProbablePrime(int certainty);
     int GetLowestSetBit(void);
