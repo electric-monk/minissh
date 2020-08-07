@@ -70,4 +70,9 @@ bool TrialDivision(const Maths::BigNumber& value);
  */
 ST_Random_Prime_Result ST_Random_Prime(const int length, const Maths::BigNumber& input_seed, const Hash::AType& hash);
 
+/**
+ * Convenience method.
+ */
+Maths::BigNumber GetPrime(IRandomSource& random, const int length);
+    
 } // namespace minissh::Maths::Primes

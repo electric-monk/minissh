@@ -211,8 +211,8 @@ Maths::BigNumber RSAVP1(const Key& key, const Maths::BigNumber& s)
 
 KeySet::KeySet(Maths::IRandomSource& random, int bits)
 {
-    _p = Maths::Primes::ST_Random_Prime(bits, Maths::BigNumber(bits, random), Hash::SHA1()).prime;
-    _q = Maths::Primes::ST_Random_Prime(bits, Maths::BigNumber(bits, random), Hash::SHA1()).prime;
+    _p = Maths::Primes::GetPrime(random, bits);
+    _q = Maths::Primes::GetPrime(random, bits);
     _n = _p * _q;
     _e = 65537;
     Maths::BigNumber on = (_p - 1) * (_q - 1);
@@ -220,7 +220,7 @@ KeySet::KeySet(Maths::IRandomSource& random, int bits)
         if ((on % _e) != 0)
             break;
         do {
-            _e = Maths::Primes::ST_Random_Prime(on.BitLength(), Maths::BigNumber(on.BitLength(), random), Hash::SHA1()).prime;
+            _e = Maths::Primes::GetPrime(random, on.BitLength());
         } while (_e >= on);
     }
     _d = _e.ModularInverse(on);

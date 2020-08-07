@@ -209,4 +209,13 @@ ST_Random_Prime_Result ST_Random_Prime(const int length, const Maths::BigNumber&
     } while (true);
 }
 
+Maths::BigNumber GetPrime(IRandomSource& random, const int length)
+{
+    // 160 is the length of a seed for SHA1
+    ST_Random_Prime_Result result = ST_Random_Prime(length, Maths::BigNumber(160, random), Hash::SHA1());
+    if (!result.status)
+        throw new std::runtime_error("Couldn't make a prime");
+    return result.prime;
+}
+
 } // namespace minissh::Maths::Primes

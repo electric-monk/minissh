@@ -69,10 +69,7 @@ Types::Blob Base::MakeHash(void)
 void Base::Start(void)
 {
     do {
-        Maths::Primes::ST_Random_Prime_Result result = Maths::Primes::ST_Random_Prime(_p.BitLength(), Maths::BigNumber(_p.BitLength(), _owner.random), Hash::SHA1());
-        if (!result.status)
-            continue;
-        _xy = result.prime;
+        _xy = Maths::Primes::GetPrime(_owner.random, _p.BitLength());
     } while (!CheckRange(_xy));
     
     Maths::BigNumber ef = _g.PowerMod(_xy, _p);
