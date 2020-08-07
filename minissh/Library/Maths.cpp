@@ -115,19 +115,13 @@ BigNumber::BigNumber(const UInt32 *data, UInt32 count, bool reverse)
     Compact();
 }
 
-BigNumber::BigNumber(UInt32 bits, IRandomSource &source, int primeCertainty)
+BigNumber::BigNumber(UInt32 bits, IRandomSource &source)
 {
     _positive = true;
     _count = (bits + (sizeof(DigitType) * 8) - 1) / (8 * sizeof(DigitType));
     _digits = new DigitType[_count];
-    while (true) {
-        for (int i = 0; i < _count; i++)
-            _digits[i] = source.Random();
-        _digits[bits / sizeof(DigitType)] |= 1 << (bits % sizeof(DigitType));
-        if (IsProbablePrime(primeCertainty)) {
-            break;
-        }
-    }
+    for (int i = 0; i < _count; i++)
+        _digits[i] = source.Random();
 }
 
 BigNumber::~BigNumber()
@@ -527,48 +521,6 @@ const UInt32 primes[] = {    2,   3,   5,   7,  11,  13,  17,  19,  23,  29,  31
                             47,  53,  59,  61,  67,  71,  73,  79,  83,  89,  97, 101, 103, 107,
                            109, 113, 127, 131, 137, 139, 149, 151, 157, 163, 167, 173, 179, 181,
                            191, 193, 197, 199, 211, 223, 227, 229, 233, 239, 241, 251 };
-
-bool BigNumber::IsProbablePrime(int certainty)
-{
-    int i;
-    
-    if (certainty < 1)
-        return true;
-    for (i = 0; i < (sizeof(primes) / sizeof(primes[0])); i++) {
-        if (*this == primes[i])
-            return true;
-        BigNumber rem;
-        _Divide(primes[i], &rem);
-        if (rem == 0)
-            return false;
-    }
-    BigNumber pMinus1 = *this - 1;
-    int b = pMinus1.GetLowestSetBit();
-    BigNumber m = pMinus1 / (1 << b);
-    int bits = BitLength();
-    for (i = 0; i < (sizeof(k) / sizeof(k[0])); i++)
-        if (bits <= k[i])
-            break;
-    int trials = t[i];
-    if (certainty > 80)
-        trials *= 2;
-    for (int t = 0; t < trials; t++) {
-        BigNumber z = BigNumber(primes[t]).PowerMod(m, *this);
-        if ((z == 1) || (z == pMinus1))
-            continue;
-        for (i = 1; i < b;) {
-            if (z == 1)
-                return false;
-            i++;
-            if (z == pMinus1)
-                break;
-            z = z.PowerMod(2, *this);
-        }
-        if ((i == b) && (z == pMinus1))
-            return false;
-    }
-    return true;
-}
 
 int BigNumber::GetLowestSetBit(void)
 {

@@ -55,7 +55,7 @@ public:
     BigNumber(const BigNumber &original);
     BigNumber(const void *bytes, UInt32 count, bool checkSign = true);
     BigNumber(const UInt32 *data, UInt32 count, bool reverse = false);
-    BigNumber(UInt32 bits, IRandomSource &source, int primeCertainty);
+    BigNumber(UInt32 bits, IRandomSource &source);
     ~BigNumber();
     
     Types::Blob Data(void) const;
@@ -75,7 +75,6 @@ public:
     BigNumber GCD(const BigNumber& b, BigNumber& x, BigNumber& y) const;
     BigNumber SquareRoot(void) const;
 
-    bool IsProbablePrime(int certainty);
     int GetLowestSetBit(void);
     int BitLength(void) const;
     int AsInt(void) const;

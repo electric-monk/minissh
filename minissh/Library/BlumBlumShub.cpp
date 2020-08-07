@@ -9,20 +9,21 @@
 #include <cstdio>
 #include "BlumBlumShub.h"
 #include "Maths.h"
+#include "Primes.h"
+#include "Hash.h"
 
 namespace minissh::Random {
 
 namespace {
     
-Maths::BigNumber GetPrime(int bits, Maths::IRandomSource &source)
+Maths::BigNumber GetPrime(int bits, Maths::IRandomSource& source)
 {
-    while (true) {
-        Maths::BigNumber result = Maths::BigNumber(bits, source, 100);
-        if ((result % 4) == 3)
-            return result;
-    }
+    Maths::Primes::ST_Random_Prime_Result result = Maths::Primes::ST_Random_Prime(bits, Maths::BigNumber(bits, source), Hash::SHA1());
+    if (!result.status)
+        throw new std::runtime_error("Failed to make a prime");
+    return result.prime;
 }
-
+    
 Maths::BigNumber GenerateN(int bits, Maths::IRandomSource &source)
 {
     Maths::BigNumber p = GetPrime(bits / 2, source);

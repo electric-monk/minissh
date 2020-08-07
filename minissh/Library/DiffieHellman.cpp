@@ -11,6 +11,7 @@
 #include "SshNumbers.h"
 #include "RSA.h"
 #include "Hash.h"
+#include "Primes.h"
 
 namespace minissh::Algorithms::DiffieHellman {
 
@@ -68,7 +69,10 @@ Types::Blob Base::MakeHash(void)
 void Base::Start(void)
 {
     do {
-        _xy = Maths::BigNumber(_p.BitLength(), _owner.random, 0);
+        Maths::Primes::ST_Random_Prime_Result result = Maths::Primes::ST_Random_Prime(_p.BitLength(), Maths::BigNumber(_p.BitLength(), _owner.random), Hash::SHA1());
+        if (!result.status)
+            continue;
+        _xy = result.prime;
     } while (!CheckRange(_xy));
     
     Maths::BigNumber ef = _g.PowerMod(_xy, _p);
