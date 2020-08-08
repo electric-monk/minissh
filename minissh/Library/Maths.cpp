@@ -16,18 +16,16 @@ namespace minissh::Maths {
 
 namespace {
     
-BigNumber EuclideanGCD(const BigNumber& a, const BigNumber& b, BigNumber& x, BigNumber& y)
+struct EuclideanGCD_Result {
+    BigNumber gcd, x, y;
+};
+    
+EuclideanGCD_Result EuclideanGCD(const BigNumber& a, const BigNumber& b)
 {
-    if (a == 0) {
-        x = 0;
-        y = 1;
-        return b;
-    }
-    BigNumber x1, y1;
-    BigNumber gcd = EuclideanGCD(b % a, a, x1, y1);
-    x = y1 - (b / a) * x1;
-    y = x1;
-    return gcd;
+    if (a == 0)
+        return {b, 0, 1};
+    EuclideanGCD_Result result = EuclideanGCD(b % a, a);
+    return {result.gcd, result.y - (b / a) * result.x, result.x};
 }
 
 int nlz(unsigned x)
@@ -131,13 +129,15 @@ BigNumber::~BigNumber()
 
 BigNumber BigNumber::GCD(const BigNumber& b) const
 {
-    BigNumber x, y;
-    return EuclideanGCD(*this, b, x, y);
+    return EuclideanGCD(*this, b).gcd;
 }
 
 BigNumber BigNumber::GCD(const BigNumber& b, BigNumber& x, BigNumber& y) const
 {
-    return EuclideanGCD(*this, b, x, y);
+    EuclideanGCD_Result result = EuclideanGCD(*this, b);
+    x = result.x;
+    y = result.y;
+    return result.gcd;
 }
 
 int BigNumber::Compare(const BigNumber &other) const
@@ -264,7 +264,7 @@ BigNumber& BigNumber::operator>>=(const BigNumber &rightSide)
         DigitType saved = 0;
         for (int i = _count; i != 0; i--) {
             DigitType value = _digits[i - 1];
-            DigitType nextSaved = value & ((1 << (amount + 1)) - 1);
+            DigitType nextSaved = value & UInt32((UInt64(1) << (amount + 1)) - 1);
             _digits[i - 1] = (value >> amount) | (saved << ((sizeof(DigitType) * 8) - amount));
             saved = nextSaved;
         }
@@ -355,7 +355,6 @@ void BigNumber::Multiply(const BigNumber &other)
     delete[] _digits;
     _digits = result;
     Compact();
-    _positive = _positive == other._positive;
 }
 
 void BigNumber::_Divide(const BigNumber &other, BigNumber *remainder)
@@ -633,11 +632,10 @@ std::string BigNumber::ToString(void) const
 
 BigNumber BigNumber::ModularInverse(const BigNumber& m)
 {
-    BigNumber x, y;
-    if (EuclideanGCD(*this, m, x, y) != 1)
+    EuclideanGCD_Result result = EuclideanGCD(*this, m);
+    if (result.gcd != 1)
         throw std::runtime_error("Not reversible");
-    return (x % m + m) % m;
+    return (result.x % m + m) % m;
 }
-
     
 } // namespace minissh::Maths

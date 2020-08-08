@@ -136,7 +136,7 @@ public:
             Add(rightSide);
         } else {
             if (!_positive) {
-                BigNumber temp = *this; // Make a note of our old value
+                BigNumber temp(*this); // Make a note of our old value
                 *this = rightSide;  // Copy right hand side
                 Subtract(temp);
             } else {
@@ -156,7 +156,7 @@ public:
             if (_positive) {
                 Subtract(rightSide);
             } else {
-                BigNumber temp = *this; // Make a note of our old value
+                BigNumber temp(*this); // Make a note of our old value
                 *this = rightSide;  // Copy right hand side
                 Subtract(temp);
             }
@@ -173,8 +173,7 @@ public:
     BigNumber& operator*=(const BigNumber &rightSide)
     {
         Multiply(rightSide);
-        if (_positive != rightSide._positive)
-            _positive = false;
+        _positive = _positive == rightSide._positive;
         return *this;
     }
     friend BigNumber operator*(BigNumber leftSide, const BigNumber &rightSide)
