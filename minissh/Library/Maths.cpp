@@ -329,7 +329,7 @@ void BigNumber::Subtract(const BigNumber &other)
     Expand(n + 1);
     UInt64 k = 0; // Carry
     for (UInt32 j = 0; j < n; j++) {
-        UInt64 sum = UInt64((j < _count) ? _digits[j] : 0) - UInt64((j < other._count) ? other._digits[j] : 0) + k;
+        UInt64 sum = UInt64((j < _count) ? _digits[j] : 0) - UInt64((j < other._count) ? other._digits[j] : 0) + (int)k;
         _digits[j] = DigitType(sum & ((UInt64(1) << (sizeof(DigitType) * 8)) - 1));
         k = sum >> (sizeof(DigitType) * 8);
     }
