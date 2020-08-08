@@ -212,7 +212,12 @@ ST_Random_Prime_Result ST_Random_Prime(const int length, const Maths::BigNumber&
 Maths::BigNumber GetPrime(IRandomSource& random, const int length)
 {
     // 160 is the length of a seed for SHA1
-    ST_Random_Prime_Result result = ST_Random_Prime(length, Maths::BigNumber(160, random), Hash::SHA1());
+    ST_Random_Prime_Result result;
+    for (int i = 0; i < 10; i++) {
+        result = ST_Random_Prime(length, Maths::BigNumber(160, random), Hash::SHA1());
+        if (result.status)
+            break;
+    }
     if (!result.status)
         throw new std::runtime_error("Couldn't make a prime");
     return result.prime;
