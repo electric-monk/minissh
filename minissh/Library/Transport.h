@@ -352,7 +352,8 @@ private:
     std::shared_ptr<Internal::Handler> _handler;
     IMessageHandler *_packeters[256];
     int _toSkip;
-    UInt32 _localSeqCounter, _remoteSeqCounter;
+    UInt32 _localSeqCounter = 0;
+    UInt32 _remoteSeqCounter = 0;
     UInt32 _localKeyCounter = 0;
     UInt32 _remoteKeyCounter = 0;
 };
