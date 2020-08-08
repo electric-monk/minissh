@@ -59,6 +59,7 @@ public:
     
     virtual Types::Blob EMSA_PKCS1_V1_5_Prefix(void) const = 0;
     virtual std::shared_ptr<AToken> Start(void) const = 0;
+    virtual UInt64 DigestLength(void) const = 0;
 
     std::optional<Types::Blob> Compute(Types::Blob data) const
     {
@@ -76,6 +77,7 @@ class SHA1 : public AType
 public:
     Types::Blob EMSA_PKCS1_V1_5_Prefix(void) const override;
     std::shared_ptr<AToken> Start(void) const override;
+    virtual UInt64 DigestLength(void) const override;
 };
 
 } // namespace minissh::Hash

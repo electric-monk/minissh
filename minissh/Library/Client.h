@@ -33,6 +33,9 @@ public:
     class IEnabler : public minissh::Transport::IMessageHandler
     {
     public:
+        /**
+         * Request a service from the server with the given name. If successful, service->Start() is called.
+         */
         virtual void Request(const std::string& name, IService* service) = 0;
     };
     

@@ -10,6 +10,7 @@
 
 #include "Client.h"
 #include "Session.h"
+#include "RSA.h"
 
 class BaseFD
 {
@@ -51,9 +52,11 @@ public:
 
     void Send(const void *data, minissh::UInt32 length) override;
     void Failed(minissh::Core::Client::PanicReason reason) override;
+    std::shared_ptr<minissh::Files::Format::IKeyFile> GetHostKey(void) override;
     
     minissh::Transport::Transport *transport;
     std::shared_ptr<minissh::Core::Session> session;
+    std::shared_ptr<minissh::RSA::KeySet> hostKey;
     
 protected:
     void OnEvent(void) override;

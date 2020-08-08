@@ -53,4 +53,9 @@ std::shared_ptr<AType::AToken> SHA1::Start(void) const
     return std::make_shared<SHA1_Token>();
 }
 
+UInt64 SHA1::DigestLength(void) const
+{
+    return SHA1_DIGEST_SIZE;
+}
+
 } // namespace minissh::Hash

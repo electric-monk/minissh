@@ -12,6 +12,10 @@
 #include <memory.h>
 
 namespace minissh {
+    
+namespace Server {
+    const Byte messages[] = {USERAUTH_REQUEST};
+}
 
 namespace Client {
     const Byte messages[] = {USERAUTH_BANNER, USERAUTH_FAILURE, USERAUTH_SUCCESS};

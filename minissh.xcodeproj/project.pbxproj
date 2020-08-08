@@ -37,9 +37,13 @@
 		3B7D1BD21C437E2A00C380C9 /* Types.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B7D1BD01C437E2A00C380C9 /* Types.cpp */; };
 		3B7D1BDB1C438B4100C380C9 /* Transport.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3B7D1BD91C438B4100C380C9 /* Transport.cpp */; };
 		3B7D1BDC1C438B4100C380C9 /* Transport.h in Headers */ = {isa = PBXBuildFile; fileRef = 3B7D1BDA1C438B4100C380C9 /* Transport.h */; };
+		3BC49ED924D6948200312430 /* Server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49ED724D6948200312430 /* Server.cpp */; };
+		3BC49EDA24D6948200312430 /* Server.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BC49ED824D6948200312430 /* Server.h */; };
 		3BC49EDC24D7550D00312430 /* SshNumbers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EDB24D7550C00312430 /* SshNumbers.cpp */; };
+		3BC49EE424D92BCD00312430 /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE324D92BCD00312430 /* server.cpp */; };
 		3BC49EEB24D92C7900312430 /* TestRandom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE924D92C7900312430 /* TestRandom.cpp */; };
 		3BC49EEC24D92C7900312430 /* TestRandom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE924D92C7900312430 /* TestRandom.cpp */; };
+		3BC49EEE24D92D9A00312430 /* liblibminissh.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 3B7D1BC01C42FBBD00C380C9 /* liblibminissh.dylib */; };
 		3BC49EF324D92E5000312430 /* TestNetwork.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF124D92E5000312430 /* TestNetwork.cpp */; };
 		3BC49EF424D92E5000312430 /* TestNetwork.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF124D92E5000312430 /* TestNetwork.cpp */; };
 		3BC49EF724D92E6400312430 /* TestUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF524D92E6400312430 /* TestUtils.cpp */; };
@@ -70,6 +74,13 @@
 			remoteGlobalIDString = 3B7D1BBF1C42FBBD00C380C9;
 			remoteInfo = libminissh;
 		};
+		3BC49EEF24D92DA800312430 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 3B7D1BA81C42FB8F00C380C9 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 3B7D1BBF1C42FBBD00C380C9;
+			remoteInfo = libminissh;
+		};
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -80,6 +91,15 @@
 			dstSubfolderSpec = 0;
 			files = (
 				3B7D1BB61C42FB8F00C380C9 /* minissh.1 in CopyFiles */,
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+		3BC49EDF24D92BCD00312430 /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 1;
 		};
@@ -122,7 +142,11 @@
 		3B7D1BD41C437E7B00C380C9 /* Types.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Types.h; path = minissh/Library/Types.h; sourceTree = "<group>"; };
 		3B7D1BD91C438B4100C380C9 /* Transport.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Transport.cpp; path = minissh/Library/Transport.cpp; sourceTree = "<group>"; };
 		3B7D1BDA1C438B4100C380C9 /* Transport.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Transport.h; path = minissh/Library/Transport.h; sourceTree = "<group>"; };
+		3BC49ED724D6948200312430 /* Server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = Server.cpp; path = minissh/Library/Server.cpp; sourceTree = "<group>"; };
+		3BC49ED824D6948200312430 /* Server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = Server.h; path = minissh/Library/Server.h; sourceTree = "<group>"; };
 		3BC49EDB24D7550C00312430 /* SshNumbers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SshNumbers.cpp; path = minissh/Library/SshNumbers.cpp; sourceTree = "<group>"; };
+		3BC49EE124D92BCD00312430 /* miniserver */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = miniserver; sourceTree = BUILT_PRODUCTS_DIR; };
+		3BC49EE324D92BCD00312430 /* server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = server.cpp; path = ../minissh/server.cpp; sourceTree = "<group>"; };
 		3BC49EE924D92C7900312430 /* TestRandom.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TestRandom.cpp; path = minissh/TestRandom.cpp; sourceTree = SOURCE_ROOT; };
 		3BC49EEA24D92C7900312430 /* TestRandom.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = TestRandom.h; path = minissh/TestRandom.h; sourceTree = SOURCE_ROOT; };
 		3BC49EF124D92E5000312430 /* TestNetwork.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TestNetwork.cpp; path = minissh/TestNetwork.cpp; sourceTree = SOURCE_ROOT; };
@@ -164,6 +188,14 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3BC49EDE24D92BCD00312430 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3BC49EEE24D92D9A00312430 /* liblibminissh.dylib in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
@@ -173,8 +205,10 @@
 				3B40C5171C55F850004DA8E5 /* libSystem.dylib */,
 				3B7D1BC71C42FBFD00C380C9 /* Library */,
 				3B7D1BB21C42FB8F00C380C9 /* Client */,
+				3BC49EE224D92BCD00312430 /* Server */,
 				3BC49EE824D92C4F00312430 /* Misc */,
 				3B7D1BB11C42FB8F00C380C9 /* Products */,
+				3BC49EED24D92D9A00312430 /* Frameworks */,
 			);
 			sourceTree = "<group>";
 		};
@@ -183,6 +217,7 @@
 			children = (
 				3B7D1BB01C42FB8F00C380C9 /* minissh */,
 				3B7D1BC01C42FBBD00C380C9 /* liblibminissh.dylib */,
+				3BC49EE124D92BCD00312430 /* miniserver */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -247,10 +282,20 @@
 				3BECB18C2498C8BA004798E5 /* DerFile.h */,
 				3BECB18F24A0993D004798E5 /* KeyFile.cpp */,
 				3BECB19024A0993D004798E5 /* KeyFile.h */,
+				3BC49ED724D6948200312430 /* Server.cpp */,
+				3BC49ED824D6948200312430 /* Server.h */,
 				3BC49EF924DBE36400312430 /* Primes.cpp */,
 				3BC49EFA24DBE36400312430 /* Primes.h */,
 			);
 			name = Library;
+			sourceTree = "<group>";
+		};
+		3BC49EE224D92BCD00312430 /* Server */ = {
+			isa = PBXGroup;
+			children = (
+				3BC49EE324D92BCD00312430 /* server.cpp */,
+			);
+			path = Server;
 			sourceTree = "<group>";
 		};
 		3BC49EE824D92C4F00312430 /* Misc */ = {
@@ -264,6 +309,13 @@
 				3BC49EF624D92E6400312430 /* TestUtils.h */,
 			);
 			path = Misc;
+			sourceTree = "<group>";
+		};
+		3BC49EED24D92D9A00312430 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -280,6 +332,7 @@
 				3B40C5371C69EEC8004DA8E5 /* SSH_AES.h in Headers */,
 				3B40C5121C4F69E3004DA8E5 /* Maths.h in Headers */,
 				3BFDC1511C78805900024654 /* Session.h in Headers */,
+				3BC49EDA24D6948200312430 /* Server.h in Headers */,
 				3B40C5201C5F52B7004DA8E5 /* sha1.h in Headers */,
 				3BC49EFC24DBE36400312430 /* Primes.h in Headers */,
 				3BECB18E2498C8BA004798E5 /* DerFile.h in Headers */,
@@ -334,6 +387,24 @@
 			productReference = 3B7D1BC01C42FBBD00C380C9 /* liblibminissh.dylib */;
 			productType = "com.apple.product-type.library.dynamic";
 		};
+		3BC49EE024D92BCD00312430 /* miniserver */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 3BC49EE524D92BCD00312430 /* Build configuration list for PBXNativeTarget "miniserver" */;
+			buildPhases = (
+				3BC49EDD24D92BCD00312430 /* Sources */,
+				3BC49EDE24D92BCD00312430 /* Frameworks */,
+				3BC49EDF24D92BCD00312430 /* CopyFiles */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				3BC49EF024D92DA800312430 /* PBXTargetDependency */,
+			);
+			name = miniserver;
+			productName = miniserver;
+			productReference = 3BC49EE124D92BCD00312430 /* miniserver */;
+			productType = "com.apple.product-type.tool";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -342,6 +413,11 @@
 			attributes = {
 				LastUpgradeCheck = 0510;
 				ORGANIZATIONNAME = "MICE Software";
+				TargetAttributes = {
+					3BC49EE024D92BCD00312430 = {
+						CreatedOnToolsVersion = 10.1;
+					};
+				};
 			};
 			buildConfigurationList = 3B7D1BAB1C42FB8F00C380C9 /* Build configuration list for PBXProject "minissh" */;
 			compatibilityVersion = "Xcode 3.2";
@@ -357,6 +433,7 @@
 			targets = (
 				3B7D1BAF1C42FB8F00C380C9 /* minissh */,
 				3B7D1BBF1C42FBBD00C380C9 /* libminissh */,
+				3BC49EE024D92BCD00312430 /* miniserver */,
 			);
 		};
 /* End PBXProject section */
@@ -381,6 +458,7 @@
 				3B40C52B1C684EC8004DA8E5 /* Encryption.cpp in Sources */,
 				3B40C52E1C68500D004DA8E5 /* Operations.cpp in Sources */,
 				3BFDC1401C6F34F900024654 /* Client.cpp in Sources */,
+				3BC49ED924D6948200312430 /* Server.cpp in Sources */,
 				3B12795C1C6B1C2200BDBB06 /* SSH_HMAC.cpp in Sources */,
 				3B40C5151C55CF0E004DA8E5 /* BlumBlumShub.cpp in Sources */,
 				3B40C51B1C5E0861004DA8E5 /* DiffieHellman.cpp in Sources */,
@@ -404,6 +482,17 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		3BC49EDD24D92BCD00312430 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				3BC49EEC24D92C7900312430 /* TestRandom.cpp in Sources */,
+				3BC49EF424D92E5000312430 /* TestNetwork.cpp in Sources */,
+				3BC49EE424D92BCD00312430 /* server.cpp in Sources */,
+				3BC49EF824D92E6400312430 /* TestUtils.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
 
 /* Begin PBXTargetDependency section */
@@ -411,6 +500,11 @@
 			isa = PBXTargetDependency;
 			target = 3B7D1BBF1C42FBBD00C380C9 /* libminissh */;
 			targetProxy = 3B7D1BC51C42FBE500C380C9 /* PBXContainerItemProxy */;
+		};
+		3BC49EF024D92DA800312430 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 3B7D1BBF1C42FBBD00C380C9 /* libminissh */;
+			targetProxy = 3BC49EEF24D92DA800312430 /* PBXContainerItemProxy */;
 		};
 /* End PBXTargetDependency section */
 
@@ -545,6 +639,69 @@
 			};
 			name = Release;
 		};
+		3BC49EE624D92BCD00312430 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CODE_SIGN_IDENTITY = "-";
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		3BC49EE724D92BCD00312430 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -571,6 +728,15 @@
 			buildConfigurations = (
 				3B7D1BC21C42FBBE00C380C9 /* Debug */,
 				3B7D1BC31C42FBBE00C380C9 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		3BC49EE524D92BCD00312430 /* Build configuration list for PBXNativeTarget "miniserver" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				3BC49EE624D92BCD00312430 /* Debug */,
+				3BC49EE724D92BCD00312430 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -16,6 +16,7 @@
 #include <sys/socket.h>
 #include <sys/select.h>
 #include <unistd.h>
+#include "RSA.h"
 
 namespace {
     
@@ -139,6 +140,11 @@ void Socket::Failed(minissh::Core::Client::PanicReason reason)
 {
     fprintf(stderr, "Failure [%i]: %s\n", reason, minissh::Core::Client::StringForPanicReason(reason).c_str());
     exit(-1);
+}
+
+std::shared_ptr<minissh::Files::Format::IKeyFile> Socket::GetHostKey(void)
+{
+    return hostKey;
 }
 
 Listener::Listener(unsigned short port)
