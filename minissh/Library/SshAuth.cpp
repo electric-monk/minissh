@@ -106,6 +106,7 @@ namespace Server {
                 std::string userName = reader.ReadString().AsString();
                 std::string serviceName = reader.ReadString().AsString();
                 std::string methodName = reader.ReadString().AsString();
+                DEBUG_LOG_STATE(("User authentication request for user '%s' with method '%s' for service '%s'\n", userName.c_str(), methodName.c_str(), serviceName.c_str()));
                 if (methodName.compare(METHOD_PASSWORD) == 0) {
                     bool hasNewPassword = reader.ReadBoolean();
                     std::string password = reader.ReadString().AsString();
@@ -124,6 +125,34 @@ namespace Server {
                             valid = *validOrChange;
                         }
                     }
+                } else if (methodName.compare(METHOD_KEY) == 0) {
+                    bool hasSignature = reader.ReadBoolean();
+                    std::string algorithm = reader.ReadString().AsString();
+                    Types::Blob publicKey = reader.ReadString();
+                    if (hasSignature) {
+                        Types::Blob signature = reader.ReadString();
+                        // Compute message
+                        Types::Blob message;
+                        Types::Writer writer(message);
+                        writer.WriteString(*_owner.sessionID);
+                        writer.Write(USERAUTH_REQUEST);
+                        writer.WriteString(userName);
+                        writer.WriteString(serviceName);
+                        writer.WriteString("publickey");
+                        writer.Write((bool)true);
+                        writer.WriteString(algorithm);
+                        writer.WriteString(publicKey);
+                        // Verify signature with message
+                        IAuthenticator::PublicKeyData keyData = _authenticator.GetPublicKeyAlgorithm(userName, algorithm, publicKey);
+                        valid = keyData.algorithm->Verify(*keyData.keyFile, signature, message);
+                    } else {
+                        if (_authenticator.ConfirmKnownPublicKey(serviceName, userName, algorithm, publicKey)) {
+                            writer.Write(USERAUTH_PK_OK);
+                            writer.WriteString(algorithm);
+                            writer.WriteString(publicKey);
+                            needResponse = false;
+                        }
+                    }
                 }
                 if (needResponse) {
                     if (valid) {
@@ -131,6 +160,7 @@ namespace Server {
                     } else {
                         std::vector<std::string> nameList;
                         nameList.push_back(METHOD_PASSWORD);
+                        nameList.push_back(METHOD_KEY);
                         writer.Write(USERAUTH_FAILURE);
                         writer.Write(nameList);
                         writer.Write((bool)false);  // Partial success

@@ -23,6 +23,11 @@ namespace Server {
     class IAuthenticator
     {
     public:
+        struct PublicKeyData {
+            std::shared_ptr<Transport::IHostKeyAlgorithm> algorithm;
+            std::shared_ptr<Files::Format::IKeyFile> keyFile;
+        };
+        
         virtual ~IAuthenticator() = default;
         
         /**
@@ -48,7 +53,16 @@ namespace Server {
          */
         virtual bool ConfirmPasswordWithNew(std::string requestedService, std::string username, std::string password, std::string newPassword) = 0;
 
-        // TODO: public key
+        /**
+         * Confirm if a public key is known to the server.
+         */
+        virtual bool ConfirmKnownPublicKey(std::string requestedService, std::string username, std::string keyAlgorithm, Types::Blob publicKey) = 0;
+        
+        /**
+         * Get signature algorithm, if the public key was known.
+         */
+        virtual PublicKeyData GetPublicKeyAlgorithm(std::string username, std::string keyAlgorithm, Types::Blob publicKey) = 0;
+        
         // TODO: multiple authentications for a single session
     };
     

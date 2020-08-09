@@ -22,7 +22,7 @@ bool SSH_RSA::Confirm(Files::Format::IKeyFile& keyFile)
     return true;
 }
 
-bool SSH_RSA::Verify(Files::Format::IKeyFile& keyFile, Types::Blob signature, Types::Blob exchangeHash)
+bool SSH_RSA::Verify(Files::Format::IKeyFile& keyFile, Types::Blob signature, Types::Blob message)
 {
     RSA::KeyPublic *publicKey = dynamic_cast<RSA::KeyPublic*>(&keyFile);
     if (!publicKey)
@@ -33,7 +33,7 @@ bool SSH_RSA::Verify(Files::Format::IKeyFile& keyFile, Types::Blob signature, Ty
         return false;
     Types::Blob signatureBlob = signatureReader.ReadString();
     
-    return RSA::SSA_PKCS1_V1_5::Verify(publicKey->PublicKey(), exchangeHash, signatureBlob, Hash::SHA1());
+    return RSA::SSA_PKCS1_V1_5::Verify(publicKey->PublicKey(), message, signatureBlob, Hash::SHA1());
 }
 
 Types::Blob SSH_RSA::Compute(Files::Format::IKeyFile& keyFile, Types::Blob message)

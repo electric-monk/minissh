@@ -19,9 +19,10 @@ namespace minissh::Algoriths {
 class SSH_RSA : public Transport::IHostKeyAlgorithm
 {
 public:
+    SSH_RSA(){}
     SSH_RSA(Transport::Transport& owner, Transport::Mode mode);
     bool Confirm(Files::Format::IKeyFile& remoteHostKeyFile) override;
-    bool Verify(Files::Format::IKeyFile& remoteHostKeyFile, Types::Blob signature, Types::Blob exchangeHash) override;
+    bool Verify(Files::Format::IKeyFile& remoteHostKeyFile, Types::Blob signature, Types::Blob message) override;
     Types::Blob Compute(Files::Format::IKeyFile& localHostKeyFile, Types::Blob message) override;
 
     static constexpr char Name[] = "ssh-rsa";

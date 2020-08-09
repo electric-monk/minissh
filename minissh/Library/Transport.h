@@ -103,7 +103,7 @@ public:
     virtual bool Confirm(Files::Format::IKeyFile& keyFile) = 0;
     
     /** Confirm the signature is valid. */
-    virtual bool Verify(Files::Format::IKeyFile& keyFile, Types::Blob signature, Types::Blob exchangeHash) = 0;
+    virtual bool Verify(Files::Format::IKeyFile& keyFile, Types::Blob signature, Types::Blob message) = 0;
     
     /**
      * For a server, compute the signature.

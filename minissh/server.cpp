@@ -14,6 +14,7 @@
 #include "SshAuth.h"
 #include "Connection.h"
 
+#include "SSH_RSA.h"
 #include "RSA.h"
 #include "Hash.h"
 
@@ -94,6 +95,16 @@ public:
     bool ConfirmPasswordWithNew(std::string requestedService, std::string username, std::string password, std::string newPassword) override
     {
         return false;
+    }
+    
+    bool ConfirmKnownPublicKey(std::string requestedService, std::string username, std::string keyAlgorithm, minissh::Types::Blob publicKey) override
+    {
+        return keyAlgorithm.compare("ssh-rsa") == 0;
+    }
+    
+    PublicKeyData GetPublicKeyAlgorithm(std::string username, std::string keyAlgorithm, minissh::Types::Blob publicKey) override
+    {
+        return {std::make_shared<minissh::Algoriths::SSH_RSA>(), minissh::Files::Format::LoadSSHKeys(publicKey)};
     }
 
 private:
