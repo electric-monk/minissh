@@ -69,7 +69,7 @@ Types::Blob Base::MakeHash(void)
 void Base::Start(void)
 {
     do {
-        _xy = Maths::Primes::GetPrime(_owner.random, _p.BitLength());
+        _xy = Maths::BigNumber(_p.BitLength(), _owner.random);
     } while (!CheckRange(_xy));
     
     Maths::BigNumber ef = _g.PowerMod(_xy, _p);
