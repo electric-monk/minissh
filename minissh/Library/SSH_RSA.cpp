@@ -40,10 +40,10 @@ Types::Blob SSH_RSA::Compute(Files::Format::IKeyFile& keyFile, Types::Blob messa
 {
     RSA::KeySet *privateKey = dynamic_cast<RSA::KeySet*>(&keyFile);
     if (!privateKey)
-        throw new std::runtime_error("Unsupported private key");
+        throw std::runtime_error("Unsupported private key");
     std::optional<Types::Blob> signature = RSA::SSA_PKCS1_V1_5::Sign(privateKey->PrivateKey(), message, Hash::SHA1());
     if (!signature)
-        throw new std::runtime_error("Unable to sign");
+        throw std::runtime_error("Unable to sign");
     Types::Blob result;
     Types::Writer writer(result);
     writer.WriteString(Name);

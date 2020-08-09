@@ -55,14 +55,14 @@ public:
         try {
             file = minissh::Files::Format::LoadKeys(blob);
         }
-        catch (std::exception *e) {
+        catch (std::exception) {
             // Any exception indicates file was not a known format
         }
         if (file && wantPrivate) {
             try {
                 file->SavePrivate(minissh::Files::Format::FileType::DER);
             }
-            catch (std::exception *e) {
+            catch (std::exception) {
                 // If we get here, no private key
                 file = nullptr;
             }

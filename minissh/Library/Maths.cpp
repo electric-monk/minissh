@@ -372,7 +372,7 @@ void BigNumber::_Divide(const BigNumber &other, BigNumber *remainder)
     
     // Validate parameters
     if ((n == 0) || (v[n - 1] == 0))
-        throw "Error";
+        throw std::runtime_error("Division by zero"); // TODO: Confirm that's what this is
     if (m < n) {
         if (remainder)
             *remainder = *this;
@@ -488,9 +488,8 @@ void BigNumber::_Divide(const BigNumber &other, BigNumber *remainder)
 BigNumber BigNumber::PowerMod(const BigNumber &pow, const BigNumber &mod) const
 {
     if (!mod._positive || (mod == 0))
-        throw "Error";
-    if (!pow._positive)
-        throw "TODO";
+        throw std::runtime_error("Division by zero");
+    assert(pow._positive);  // TODO: Negative division
     if (pow == 1)
         return *this % mod;
     BigNumber s = 1;
@@ -542,7 +541,7 @@ int BigNumber::BitLength(void) const
 int BigNumber::AsInt(void) const
 {
     if (_count > 1)
-        throw "Error";
+        throw std::runtime_error("BigNumber won't fit in an integer");
     if (_positive)
         return _digits[0];
     else

@@ -401,7 +401,7 @@ namespace Client {
     std::shared_ptr<Core::Client::IEnabler> AuthService::AuthEnabler(void)
     {
         if (!_authenticator)
-            throw new std::runtime_error("Authenticator not set");
+            throw std::runtime_error("Authenticator not set");
         return std::make_shared<Enabler>(*this, _owner, _authenticator);
     }
 }

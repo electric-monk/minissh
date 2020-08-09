@@ -70,7 +70,7 @@ std::shared_ptr<IKeyFile> LoadKeys(Types::Blob input)
     // Inspect first five bytes
     int length = input.Length();
     if (length < 5)
-        throw new Exception("File too short");
+        throw Exception("File too short");
     const Byte *bytes = input.Value();
     int der_len = std::strlen(DER_START);
     if (std::memcmp(bytes, DER_START, der_len) == 0) {
@@ -151,7 +151,7 @@ Types::Blob SaveKeys(std::shared_ptr<IKeyFile> keys, FileType type, bool isPriva
             base64chop = 0;
             break;
         default:
-            throw new Exception("Unsupported file type");
+            throw Exception("Unsupported file type");
     }
     Types::Blob result;
     Types::Writer writer(result);
@@ -183,7 +183,7 @@ std::shared_ptr<IKeyFile> LoadSSHKeys(Types::Blob sshInput)
     }, FileType::SSH);
     if (impl)
         return impl->Execute(sshInput);
-    throw new std::runtime_error("Unknown format");
+    throw std::runtime_error("Unknown format");
 }
 
 Types::Blob SaveSSHKeys(std::shared_ptr<IKeyFile> keys, bool isPrivate)

@@ -188,7 +188,7 @@ public:
     State(Types::Blob input)
     {
         if (input.Length() != sizeof(_matrix))
-            throw "Invalid state";
+            throw std::runtime_error("Invalid state");
         memcpy(_matrix, input.Value(), sizeof(_matrix));
     }
     
@@ -209,7 +209,7 @@ public:
     {
         offset *= sizeof(_matrix);
         if ((key.Length() - offset) < sizeof(_matrix))
-            throw "Expanded key too short";
+            throw std::runtime_error("Expanded key too short");
         const Byte *other = key.Value() + offset;
         for (int i = 0; i < sizeof(_matrix); i++)
             _matrix[i] ^= other[i];
@@ -326,7 +326,7 @@ AES::AES(Types::Blob key)
             _rounds = 14;
             break;
         default:
-            throw "Invalid key length";
+            throw std::invalid_argument("Invalid key length");
     }
     _expandedKey = ExpandKey(key, _rounds);
 }

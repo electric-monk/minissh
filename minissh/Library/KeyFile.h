@@ -48,12 +48,12 @@ public:
     virtual Types::Blob SavePublic(FileType type) = 0;
     virtual Types::Blob SavePrivate(FileType type)
     {
-        throw new Exception("Attempting to save private key of a public key");
+        throw Exception("Attempting to save private key of a public key");
     }
     
     virtual std::string GetKeyName(FileType type, bool isPrivate)
     {
-        throw new Exception("Unsupported file type");
+        throw Exception("Unsupported file type");
     }
 };
 

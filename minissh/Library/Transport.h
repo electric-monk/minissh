@@ -276,7 +276,7 @@ public:
         virtual void Send(const void *data, UInt32 length) = 0;
         virtual void Failed(PanicReason reason) = 0;
         // For servers
-        virtual std::shared_ptr<Files::Format::IKeyFile> GetHostKey(void) { throw new std::runtime_error("Not implemented"); }
+        virtual std::shared_ptr<Files::Format::IKeyFile> GetHostKey(void) { throw std::runtime_error("Not implemented"); }
     };
     
     // Internal

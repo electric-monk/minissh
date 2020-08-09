@@ -47,7 +47,7 @@ private:
             Parse();
         } while (_reader.Remaining() > expected);
         if (expected != _reader.Remaining())
-            throw new std::runtime_error("Confused too much data");
+            throw std::runtime_error("Confused too much data");
     }
     
     std::vector<UInt32> ObjectIdentifier(const Types::Blob& data)
@@ -224,7 +224,7 @@ Types::Blob Integer::Save(void)
 Types::Blob ObjectIdentifier::Save(void)
 {
     if (components.size() < 2)
-        throw new std::invalid_argument("OBJECT IDENTIFIER requires a minimum of two values");
+        throw std::invalid_argument("OBJECT IDENTIFIER requires a minimum of two values");
     // TODO: Efficiency
     Types::Blob temp;
     Types::Writer tempWrite(temp);
@@ -232,13 +232,13 @@ Types::Blob ObjectIdentifier::Save(void)
     uint32_t first = components[0];
     uint32_t second = components[1];
     if (first > 2)
-        throw new std::invalid_argument("OBJECT IDENTIFIER first value must be 0, 1 or 2");
+        throw std::invalid_argument("OBJECT IDENTIFIER first value must be 0, 1 or 2");
     if (first == 2) {
         if (second > 175)
-            throw new std::invalid_argument("OBJECT IDENTIFIER second value must be of value 0 to 175");
+            throw std::invalid_argument("OBJECT IDENTIFIER second value must be of value 0 to 175");
     } else {
         if (second > 39)
-            throw new std::invalid_argument("OBJECT IDENTIFIER second value must be of value 0 to 39");
+            throw std::invalid_argument("OBJECT IDENTIFIER second value must be of value 0 to 39");
     }
     tempWrite.Write(Byte((first * 40) + second));
     // Save any subsequent integers

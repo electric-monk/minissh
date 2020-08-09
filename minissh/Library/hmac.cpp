@@ -19,7 +19,7 @@ Types::Blob Calculate(const Hash::AType& hash, Types::Blob key, Types::Blob text
     if (key.Length() > 64) {
         std::optional<Types::Blob> result = hash.Compute(key);
         if (!result)
-            throw new std::runtime_error("Couldn't hash key");
+            throw std::runtime_error("Couldn't hash key");
         key = *result;
     }
     
@@ -40,7 +40,7 @@ Types::Blob Calculate(const Hash::AType& hash, Types::Blob key, Types::Blob text
     innerHash->Update(text);
     std::optional<Types::Blob> innerDigest = innerHash->End();
     if (!innerDigest)
-        throw new std::runtime_error("Couldn't compute inner digest");
+        throw std::runtime_error("Couldn't compute inner digest");
     
     // Do outer hash
     std::shared_ptr<Hash::AType::AToken> outerHash = hash.Start();
@@ -48,7 +48,7 @@ Types::Blob Calculate(const Hash::AType& hash, Types::Blob key, Types::Blob text
     outerHash->Update(*innerDigest);
     std::optional<Types::Blob> outerDigest = outerHash->End();
     if (!outerDigest)
-        throw new std::runtime_error("Couldn't compute outer digest");
+        throw std::runtime_error("Couldn't compute outer digest");
     return *outerDigest;
 }
 

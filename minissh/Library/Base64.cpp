@@ -19,7 +19,7 @@ constexpr Byte padding = '=';
 Byte ByteForBits(Byte bits)
 {
     if (bits & ~0x3F)
-        throw new std::runtime_error("Invalid bits");
+        throw std::runtime_error("Invalid bits");
     return "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"[bits & 0x3F];
 }
 
@@ -37,7 +37,7 @@ Byte BitsForByte(Byte byte)
         return 63;
     if (byte == padding) // not really valid, but to make the code simpler
         return 0;
-    throw new std::runtime_error("Invalid byte");
+    throw std::runtime_error("Invalid byte");
 }
     
 } // namespace

@@ -442,20 +442,20 @@ Types::Blob Packet::Payload(void) const
 {
     std::shared_ptr<IEncryptionAlgorithm> decrypter = _owner.GetIncomingEncryption();
     if (Length() < decrypter->BlockSize())
-        throw new std::runtime_error("Packet does not contain at least a block");
+        throw std::runtime_error("Packet does not contain at least a block");
     Types::Reader reader(*this);
     UInt32 length = reader.ReadUInt32();
     length -= reader.ReadByte();
     length--;
     if (Length() < (length + sizeof(UInt32)))
-        throw new std::runtime_error("Packet is missing data");
+        throw std::runtime_error("Packet is missing data");
     return reader.ReadBytes((int)length);
 }
 
 Types::Blob Packet::Padding(void) const
 {
     if (Length() < (PacketLength() + sizeof(UInt32)))
-        throw new std::runtime_error("Packet does not contain enough data");
+        throw std::runtime_error("Packet does not contain enough data");
     Types::Reader reader(*this);
     UInt32 length = reader.ReadUInt32();
     length -= reader.ReadByte();
@@ -468,7 +468,7 @@ Types::Blob Packet::MAC(void) const
 {
     std::shared_ptr<IHMACAlgorithm> mac = _owner.GetIncomingHMAC();
     if (Length() < (PacketLength() + mac->Length() + sizeof(UInt32)))
-        throw new std::runtime_error("Packet is missing data");
+        throw std::runtime_error("Packet is missing data");
     Types::Reader reader(*this);
     UInt32 length = reader.ReadUInt32();
     reader.SkipBytes((int)length);

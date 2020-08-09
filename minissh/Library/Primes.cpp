@@ -219,7 +219,7 @@ Maths::BigNumber GetPrime(IRandomSource& random, const int length)
             break;
     }
     if (!result.status)
-        throw new std::runtime_error("Couldn't make a prime");
+        throw std::runtime_error("Couldn't make a prime");
     return result.prime;
 }
 

@@ -56,7 +56,7 @@ Types::Blob Base::MakeHash(void)
     writer.Write(key);
     std::optional<Types::Blob> result = _hash.Compute(input);
     if (!result)
-        throw new std::runtime_error("Failed to create hash");
+        throw std::runtime_error("Failed to create hash");
 #ifdef DEBUG_KEX
     printf("Hash content:\n");
     input.DebugDump();

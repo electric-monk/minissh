@@ -22,11 +22,11 @@ class KeyBaseReader : public Files::DER::Reader::ICallback
 protected:
     void Failed(void)
     {
-        throw new std::runtime_error("Unexpected DER type");
+        throw std::runtime_error("Unexpected DER type");
     }
     void Invalid(void)
     {
-        throw new std::runtime_error("File invalid; exponent/coefficient mismatch");
+        throw std::runtime_error("File invalid; exponent/coefficient mismatch");
     }
 private:
     int _start, _end, _cur;
@@ -173,7 +173,7 @@ Maths::BigNumber RSASP1(const Key& key, const Maths::BigNumber& m)
     // 1. If the message representative m is not between 0 and n - 1,
     //    output "message representative out of range" and stop.
     if ((m <= 0) || (m >= (key.n - 1)))
-        throw "Error";
+        throw Exception("message representative out of range");
     
     // 2. The signature representative s is computed as follows.
     //   a. If the first form (n, d) of K is used, let s = m^d mod n.
@@ -201,7 +201,7 @@ Maths::BigNumber RSAVP1(const Key& key, const Maths::BigNumber& s)
     // 1. If the signature representative s is not between 0 and n - 1,
     //    output "signature representative out of range" and stop.
     if ((s <= 0) || (s >= (key.n - 1)))
-        throw "Error";
+        throw Exception("signature representative out of range");
     
     // 2. Let m = s^e mod n.
     Maths::BigNumber m = s.PowerMod(key.e, key.n);
@@ -234,11 +234,11 @@ KeyPublic::KeyPublic(Types::Blob load, Files::Format::FileType type)
         {
             Types::Reader reader(load);
             if (reader.ReadString().AsString().compare(TEXT_SSH_RSA) != 0)
-                throw new std::runtime_error("Not an SSH RSA public key");
+                throw std::runtime_error("Not an SSH RSA public key");
             _e = reader.ReadMPInt();
             _n = reader.ReadMPInt();
             if (reader.Remaining())
-                throw new std::runtime_error("Extra data found after SSH key data");
+                throw std::runtime_error("Extra data found after SSH key data");
         }
             break;
         case Files::Format::FileType::DER:
@@ -248,7 +248,7 @@ KeyPublic::KeyPublic(Types::Blob load, Files::Format::FileType type)
         }
             break;
         default:
-            throw new std::invalid_argument("Unsupported file type");
+            throw std::invalid_argument("Unsupported file type");
     }
 }
 
@@ -281,7 +281,7 @@ Types::Blob KeyPublic::SavePublic(Files::Format::FileType type)
             return sequence.Save();
         }
         default:
-            throw new std::invalid_argument("Unsupported file type");
+            throw std::invalid_argument("Unsupported file type");
     };
 }
 
@@ -304,7 +304,7 @@ std::shared_ptr<Transport::IHostKeyAlgorithm> KeyPublic::KeyAlgorithm(void)
 KeySet::KeySet(Types::Blob load, Files::Format::FileType type)
 {
     if (type != Files::Format::FileType::DER)
-        throw new std::invalid_argument("Unsupported file type");
+        throw std::invalid_argument("Unsupported file type");
     KeySetReader reader(_n, _e, _d, _p, _q);
     Files::DER::Reader::Load(load, reader);
 }
@@ -312,7 +312,7 @@ KeySet::KeySet(Types::Blob load, Files::Format::FileType type)
 Types::Blob KeySet::SavePrivate(Files::Format::FileType type)
 {
     if (type != Files::Format::FileType::DER)
-        throw new std::invalid_argument("Unsupported file type");
+        throw std::invalid_argument("Unsupported file type");
     // DER File Format
     // RSAPrivateKey ::= SEQUENCE {
     //     version           Version,
@@ -365,7 +365,7 @@ std::optional<Types::Blob> EMSA_PKCS1_V1_5(Types::Blob M, int emLen, const Hash:
     //    too long" and stop.
     std::optional<Types::Blob> H = hash.Compute(M);
     if (!H)
-        throw new Exception("No result from hash");
+        throw Exception("No result from hash");
 
     // 2. Encode the algorithm ID for the hash function and the hash value
     //    into an ASN.1 value of type DigestInfo (see Appendix A.2.4) with
@@ -388,7 +388,7 @@ std::optional<Types::Blob> EMSA_PKCS1_V1_5(Types::Blob M, int emLen, const Hash:
     // 3. If emLen < tLen + 11, output "intended encoded message length too
     //    short" and stop.
     if (emLen < tLen + 11)
-        throw new Exception("Intended encoded message length too short");
+        throw Exception("Intended encoded message length too short");
 
     // 4. Generate an octet string PS consisting of emLen - tLen - 3 octets
     //    with hexadecimal value 0xff.  The length of PS will be at least 8
@@ -449,7 +449,7 @@ std::optional<Types::Blob> SSA_PKCS1_V1_5::Sign(const Key& privateKey, Types::Bl
     //    too short" and stop.
     std::optional<Types::Blob> EM = EMSA_PKCS1_V1_5(M, k, hash);
     if (!EM)
-        throw new Exception("No result from hash");
+        throw Exception("No result from hash");
 
     // 2. RSA signature:
     //  a. Convert the encoded message EM to an integer message
@@ -513,7 +513,7 @@ bool SSA_PKCS1_V1_5::Verify(const Key& publicKey, Types::Blob M, Types::Blob S, 
     //    too short" and stop.
     std::optional<Types::Blob> EM_ = EMSA_PKCS1_V1_5(M, k, hash);
     if (!EM_)
-        throw new Exception("Failed to encode");
+        throw Exception("Failed to encode");
     
     // 4. Compare the encoded message EM and the second encoded message EM'.
     //    If they are the same, output "valid signature"; otherwise, output

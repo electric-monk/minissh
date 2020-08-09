@@ -115,7 +115,7 @@ std::string Blob::AsString(void) const
 Blob Blob::XorWith(const Blob& other) const
 {
     if (_len != other._len)
-        throw new std::runtime_error("Blobs are not same length");
+        throw std::invalid_argument("Blobs are not same length");
     Blob result(_value, _len);
     for (int i = 0; i < _len; i++)
         result._value[i] ^= other._value[i];
@@ -302,7 +302,7 @@ void Reader::SkipBytes(int length)
 void Reader::Check(size_t length)
 {
     if (length > _length)
-        throw new std::runtime_error("Ran out of data");
+        throw std::out_of_range("Ran out of data");
 }
 
 Writer::Writer(Blob& output)
@@ -320,7 +320,7 @@ void Writer::Write(Blob bytes, int offset, int length)
     if (length == -1)
         length = bytes.Length() - offset;
     else if ((offset + length) > bytes.Length())
-        throw new std::runtime_error("Write out of range");
+        throw std::out_of_range("Write out of range");
     _blob.Append(bytes.Value() + offset, length);
 }
 
