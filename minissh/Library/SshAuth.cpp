@@ -16,6 +16,7 @@ namespace minissh {
     
 namespace {
     constexpr const char* SERVICE_NAME = "ssh-userauth";
+    constexpr const char* METHOD_NONE = "none";
     constexpr const char* METHOD_KEY = "publickey";
     constexpr const char* METHOD_PASSWORD = "password";
 }
@@ -190,7 +191,7 @@ namespace Server {
 }
 
 namespace Client {
-    const Byte messages[] = {USERAUTH_BANNER, USERAUTH_FAILURE, USERAUTH_SUCCESS};
+    const Byte messages[] = {USERAUTH_BANNER, USERAUTH_FAILURE, USERAUTH_SUCCESS, USERAUTH_MULTIMEANING_RESPONSE};
 
     namespace {
         class Enabler : public Core::Client::IEnabler
@@ -232,7 +233,19 @@ namespace Client {
     {
         return *_task._service;
     }
-    
+
+    void IAuthenticator::Replier::SendNone(const std::string& username)
+    {
+        *_method = METHOD_NONE;
+        Types::Blob message;
+        Types::Writer writer(message);
+        writer.Write(Byte(USERAUTH_REQUEST));
+        writer.WriteString(username);
+        writer.WriteString(Name());
+        writer.WriteString(METHOD_NONE);
+        _task._client->Send(message);
+    }
+
     void IAuthenticator::Replier::SendPassword(const std::string& username, const std::string& password, const std::optional<std::string>& newPassword)
     {
         *_method = METHOD_PASSWORD;

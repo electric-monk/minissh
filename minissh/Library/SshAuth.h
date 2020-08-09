@@ -126,6 +126,9 @@ namespace Client {
             std::string Name(void);
             Core::Client::IService& Service(void);
             
+            /** Request log in without authentication. Unlikely to be accepted, but will reveal supported methods. */
+            void SendNone(const std::string& username);
+            
             /** Send the specified password to attempt authentication via the password mechanism. */
             void SendPassword(const std::string& username, const std::string& password, const std::optional<std::string>& newPassword = std::nullopt);
             
