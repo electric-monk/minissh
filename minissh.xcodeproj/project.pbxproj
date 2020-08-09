@@ -40,7 +40,6 @@
 		3BC49ED924D6948200312430 /* Server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49ED724D6948200312430 /* Server.cpp */; };
 		3BC49EDA24D6948200312430 /* Server.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BC49ED824D6948200312430 /* Server.h */; };
 		3BC49EDC24D7550D00312430 /* SshNumbers.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EDB24D7550C00312430 /* SshNumbers.cpp */; };
-		3BC49EE424D92BCD00312430 /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE324D92BCD00312430 /* server.cpp */; };
 		3BC49EEB24D92C7900312430 /* TestRandom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE924D92C7900312430 /* TestRandom.cpp */; };
 		3BC49EEC24D92C7900312430 /* TestRandom.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE924D92C7900312430 /* TestRandom.cpp */; };
 		3BC49EEE24D92D9A00312430 /* liblibminissh.dylib in Frameworks */ = {isa = PBXBuildFile; fileRef = 3B7D1BC01C42FBBD00C380C9 /* liblibminissh.dylib */; };
@@ -50,6 +49,7 @@
 		3BC49EF824D92E6400312430 /* TestUtils.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF524D92E6400312430 /* TestUtils.cpp */; };
 		3BC49EFB24DBE36400312430 /* Primes.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EF924DBE36400312430 /* Primes.cpp */; };
 		3BC49EFC24DBE36400312430 /* Primes.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BC49EFA24DBE36400312430 /* Primes.h */; };
+		3BC49F0224DFB1E800312430 /* server.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BC49EE324D92BCD00312430 /* server.cpp */; };
 		3BECB18924989755004798E5 /* Base64.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BECB18724989755004798E5 /* Base64.cpp */; };
 		3BECB18A24989755004798E5 /* Base64.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BECB18824989755004798E5 /* Base64.h */; };
 		3BECB18D2498C8BA004798E5 /* DerFile.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BECB18B2498C8BA004798E5 /* DerFile.cpp */; };
@@ -126,7 +126,7 @@
 		3B40C5221C60A9EF004DA8E5 /* RSA.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = RSA.h; path = minissh/Library/RSA.h; sourceTree = "<group>"; };
 		3B40C5251C61F9D8004DA8E5 /* SSH_RSA.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SSH_RSA.cpp; path = minissh/Library/SSH_RSA.cpp; sourceTree = "<group>"; };
 		3B40C5261C61F9D8004DA8E5 /* SSH_RSA.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SSH_RSA.h; path = minissh/Library/SSH_RSA.h; sourceTree = "<group>"; };
-		3B40C5291C6845E7004DA8E5 /* Encryption.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = Encryption.h; path = minissh/Library/Encryption.h; sourceTree = "<group>"; };
+		3B40C5291C6845E7004DA8E5 /* Encryption.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = Encryption.h; path = minissh/Library/Encryption.h; sourceTree = "<group>"; };
 		3B40C52A1C684EC8004DA8E5 /* Encryption.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Encryption.cpp; path = minissh/Library/Encryption.cpp; sourceTree = "<group>"; };
 		3B40C52C1C68500D004DA8E5 /* Operations.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Operations.cpp; path = minissh/Library/Operations.cpp; sourceTree = "<group>"; };
 		3B40C52D1C68500D004DA8E5 /* Operations.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Operations.h; path = minissh/Library/Operations.h; sourceTree = "<group>"; };
@@ -146,7 +146,7 @@
 		3BC49ED824D6948200312430 /* Server.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = Server.h; path = minissh/Library/Server.h; sourceTree = "<group>"; };
 		3BC49EDB24D7550C00312430 /* SshNumbers.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SshNumbers.cpp; path = minissh/Library/SshNumbers.cpp; sourceTree = "<group>"; };
 		3BC49EE124D92BCD00312430 /* miniserver */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = miniserver; sourceTree = BUILT_PRODUCTS_DIR; };
-		3BC49EE324D92BCD00312430 /* server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = server.cpp; path = ../minissh/server.cpp; sourceTree = "<group>"; };
+		3BC49EE324D92BCD00312430 /* server.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = server.cpp; path = minissh/server.cpp; sourceTree = "<group>"; };
 		3BC49EE924D92C7900312430 /* TestRandom.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TestRandom.cpp; path = minissh/TestRandom.cpp; sourceTree = SOURCE_ROOT; };
 		3BC49EEA24D92C7900312430 /* TestRandom.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = TestRandom.h; path = minissh/TestRandom.h; sourceTree = SOURCE_ROOT; };
 		3BC49EF124D92E5000312430 /* TestNetwork.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = TestNetwork.cpp; path = minissh/TestNetwork.cpp; sourceTree = SOURCE_ROOT; };
@@ -161,7 +161,7 @@
 		3BECB18B2498C8BA004798E5 /* DerFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = DerFile.cpp; path = minissh/Library/DerFile.cpp; sourceTree = "<group>"; };
 		3BECB18C2498C8BA004798E5 /* DerFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = DerFile.h; path = minissh/Library/DerFile.h; sourceTree = "<group>"; };
 		3BECB18F24A0993D004798E5 /* KeyFile.cpp */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.cpp.cpp; name = KeyFile.cpp; path = minissh/Library/KeyFile.cpp; sourceTree = "<group>"; };
-		3BECB19024A0993D004798E5 /* KeyFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = KeyFile.h; path = minissh/Library/KeyFile.h; sourceTree = "<group>"; };
+		3BECB19024A0993D004798E5 /* KeyFile.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.objj.h; name = KeyFile.h; path = minissh/Library/KeyFile.h; sourceTree = "<group>"; };
 		3BFDC13E1C6F34F900024654 /* Client.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Client.cpp; path = minissh/Library/Client.cpp; sourceTree = "<group>"; };
 		3BFDC13F1C6F34F900024654 /* Client.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Client.h; path = minissh/Library/Client.h; sourceTree = "<group>"; };
 		3BFDC1421C73216F00024654 /* SshAuth.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = SshAuth.cpp; path = minissh/Library/SshAuth.cpp; sourceTree = "<group>"; };
@@ -295,7 +295,7 @@
 			children = (
 				3BC49EE324D92BCD00312430 /* server.cpp */,
 			);
-			path = Server;
+			name = Server;
 			sourceTree = "<group>";
 		};
 		3BC49EE824D92C4F00312430 /* Misc */ = {
@@ -308,7 +308,7 @@
 				3BC49EF524D92E6400312430 /* TestUtils.cpp */,
 				3BC49EF624D92E6400312430 /* TestUtils.h */,
 			);
-			path = Misc;
+			name = Misc;
 			sourceTree = "<group>";
 		};
 		3BC49EED24D92D9A00312430 /* Frameworks */ = {
@@ -488,7 +488,7 @@
 			files = (
 				3BC49EEC24D92C7900312430 /* TestRandom.cpp in Sources */,
 				3BC49EF424D92E5000312430 /* TestNetwork.cpp in Sources */,
-				3BC49EE424D92BCD00312430 /* server.cpp in Sources */,
+				3BC49F0224DFB1E800312430 /* server.cpp in Sources */,
 				3BC49EF824D92E6400312430 /* TestUtils.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
