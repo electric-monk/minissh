@@ -3,4 +3,10 @@
 xcuserdata
 *.xcuserdatad
 xcshareddata
+*.o
+libminissh.a
+libutils.a
+minissh/minissh
+minissh/miniserver
+.depend
 
