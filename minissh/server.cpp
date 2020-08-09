@@ -75,28 +75,6 @@ private:
     std::shared_ptr<minissh::RSA::KeySet> _hostKey;
 };
 
-minissh::Byte UnHex(char c)
-{
-    if ((c >= '0') && (c <= '9'))
-        return c - '0';
-    if ((c >= 'a') && (c <= 'f'))
-        return c - 'a' + 10;
-    if ((c >= 'A') && (c <= 'F'))
-        return c - 'A' + 10;
-    throw new std::runtime_error("Invalid character");
-}
-
-minissh::Maths::BigNumber LoadString(const char* data)
-{
-    int len = strlen(data) / 2;
-    minissh::Byte *bobo = new minissh::Byte[len];
-    for (int i = 0; i < len; i++)
-        bobo[i] = (UnHex(data[(i * 2) + 0]) << 4) | UnHex(data[(i * 2) + 1]);
-    minissh::Maths::BigNumber res(bobo, len);
-    delete[] bobo;
-    return res;
-}
-
 int main(int argc, const char * argv[])
 {
     TestRandom randomiser;
