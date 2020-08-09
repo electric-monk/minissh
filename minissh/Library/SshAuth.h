@@ -143,16 +143,16 @@ namespace Client {
         };
         
         /** Callback when the server has sent a banner for the currently authenticating user. */
-        virtual void Banner(Replier *replier, const std::string& message, const std::string& languageTag) = 0;
+        virtual void Banner(Replier& replier, const std::string& message, const std::string& languageTag) = 0;
         
         /** Specifies acceptable authentication modes. */
-        virtual void Query(Replier *replier, const std::optional<std::vector<std::string>>& acceptedModes, bool partiallyAccepted) = 0;
+        virtual void Query(Replier& replier, const std::optional<std::vector<std::string>>& acceptedModes, bool partiallyAccepted) = 0;
         
         /** Triggers if a password is attempted and the server requests a password change. */
-        virtual void NeedChangePassword(Replier *replier, const std::string& prompt, const std::string& languageTag) = 0;
+        virtual void NeedChangePassword(Replier& replier, const std::string& prompt, const std::string& languageTag) = 0;
         
         /** Triggers if a public key is sent and the server confirms that it is an acceptable authentication mechanism. */
-        virtual void AcceptablePublicKey(Replier *replier, const std::string& keyAlgorithm, Types::Blob publicKey) = 0;
+        virtual void AcceptablePublicKey(Replier& replier, const std::string& keyAlgorithm, Types::Blob publicKey) = 0;
     };
     
     /**

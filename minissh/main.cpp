@@ -21,12 +21,12 @@
 class TestAuthentication : public minissh::Client::IAuthenticator
 {
 public:
-    void Banner(Replier *replier, const std::string& message, const std::string& languageTag) override
+    void Banner(Replier& replier, const std::string& message, const std::string& languageTag) override
     {
         printf("BANNER: %s\n", message.c_str());
     }
     
-    void Query(Replier *replier, const std::optional<std::vector<std::string>>& acceptedModes, bool partiallyAccepted) override
+    void Query(Replier& replier, const std::optional<std::vector<std::string>>& acceptedModes, bool partiallyAccepted) override
     {
         // This is demo code - not thoroughly safe!
         char *username = NULL;
@@ -35,15 +35,15 @@ public:
         ssize_t linelen = getline(&username, &linecap, stdin);
         username[linelen - 1] = '\0';    // Remove newline
         char *password = getpass("Password: ");
-        replier->SendPassword(username, password);
+        replier.SendPassword(username, password);
     }
     
-    void NeedChangePassword(Replier *replier, const std::string& prompt, const std::string& languageTag) override
+    void NeedChangePassword(Replier& replier, const std::string& prompt, const std::string& languageTag) override
     {
         printf("Server says we need to change password (%s)\n", prompt.c_str());
     }
     
-    void AcceptablePublicKey(Replier *replier, const std::string& keyAlgorithm, minissh::Types::Blob publicKey) override
+    void AcceptablePublicKey(Replier& replier, const std::string& keyAlgorithm, minissh::Types::Blob publicKey) override
     {
         // Todo
     }

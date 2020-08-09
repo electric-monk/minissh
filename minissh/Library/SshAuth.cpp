@@ -327,7 +327,7 @@ namespace Client {
         Internal::AuthTask &task = _activeTasks.front();
         DEBUG_LOG_STATE(("Requesting auth service: %s\n", task._name.c_str()));
         IAuthenticator::Replier replier(&_lastRequest, task);
-        task.authenticator->Query(&replier, std::nullopt, false);
+        task.authenticator->Query(replier, std::nullopt, false);
     }
 
     void AuthService::HandlePayload(Types::Blob data)
@@ -353,11 +353,11 @@ namespace Client {
                 if (req == METHOD_PASSWORD) {
                     Types::Blob message = reader.ReadString();
                     Types::Blob languageTag = reader.ReadString();
-                    task.authenticator->NeedChangePassword(&replier, message.AsString(), languageTag.AsString());
+                    task.authenticator->NeedChangePassword(replier, message.AsString(), languageTag.AsString());
                 } else if (req == METHOD_KEY) {
                     std::string algorithmName = reader.ReadString().AsString();
                     Types::Blob publicKey = reader.ReadString();
-                    task.authenticator->AcceptablePublicKey(&replier, algorithmName, publicKey);
+                    task.authenticator->AcceptablePublicKey(replier, algorithmName, publicKey);
                 } else {
                     // panic?
                 }
@@ -370,7 +370,7 @@ namespace Client {
                 bool partialSuccess = reader.ReadBoolean();
                 Internal::AuthTask &task = _activeTasks.front();
                 IAuthenticator::Replier replier(&_lastRequest, task);
-                task.authenticator->Query(&replier, acceptedModes, partialSuccess);
+                task.authenticator->Query(replier, acceptedModes, partialSuccess);
             }
                 break;
             case USERAUTH_BANNER:
@@ -379,7 +379,7 @@ namespace Client {
                 Types::Blob languageTag = reader.ReadString();
                 Internal::AuthTask &task = _activeTasks.front();
                 IAuthenticator::Replier replier(&_lastRequest, task);
-                task.authenticator->Banner(&replier, message.AsString(), languageTag.AsString());
+                task.authenticator->Banner(replier, message.AsString(), languageTag.AsString());
             }
                 break;
         }
