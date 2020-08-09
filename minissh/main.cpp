@@ -11,7 +11,6 @@
 #include <unistd.h>
 #include "Client.h"
 #include "Connection.h"
-#include "Session.h"
 
 #include "SshAuth.h"
 
@@ -45,6 +44,101 @@ public:
     }
 };
 
+class Session : public minissh::Core::Connection::Connection::AChannel
+{
+public:
+    Session(minissh::Core::Connection::Connection& owner)
+    :minissh::Core::Connection::Connection::AChannel(owner)
+    {
+        _shell = false;
+    }
+    
+    std::optional<minissh::Types::Blob> OpenInfo(std::string &nameOut, minissh::UInt32 &packetSize, minissh::UInt32 &windowSize) override
+    {
+        nameOut = "session";
+        return {};
+    }
+    
+    void Opened(minissh::Types::Blob data) override
+    {
+        minissh::Types::Blob parameters;
+        minissh::Types::Writer writer(parameters);
+        writer.WriteString("vt100");
+        writer.Write(minissh::UInt32(80));
+        writer.Write(minissh::UInt32(24));
+        writer.Write(minissh::UInt32(640));
+        writer.Write(minissh::UInt32(480));
+        char terminalModes[] = {0};
+        writer.WriteString(std::string(terminalModes, sizeof(terminalModes)));
+        Request("pty-req", true, parameters);
+    }
+    
+    void OpenFailed(minissh::UInt32 reason, const std::string& message, const std::string& languageTag) override
+    {
+        printf("Failed to create session: %i: %s\n", reason, message.c_str());
+    }
+    
+    void ReceivedRequestResponse(bool success) override
+    {
+        if (!success) {
+            printf("Failed to open TTY\n");
+            return;
+        }
+        if (!_shell) {
+            _shell = true;
+            Request("shell", false, std::nullopt);
+        }
+    }
+    
+    void ReceivedClose(void) override
+    {
+        printf("Session closed\n");
+    }
+    
+    void ReceivedData(minissh::Types::Blob data) override
+    {
+        for (int i = 0; i < data.Length(); i++)
+            printf("%c", data.Value()[i]);
+        fflush(stdout);
+    }
+    
+    void ReceivedExtendedData(minissh::UInt32 type, minissh::Types::Blob data) override
+    {
+        for (int i = 0; i < data.Length(); i++)
+            printf("%c", data.Value()[i]);
+        fflush(stdout);
+    }
+    
+    void Send(const char *keystrokes, minissh::UInt32 length)
+    {
+        AChannel::Send(minissh::Types::Blob((minissh::Byte*)keystrokes, length));
+    }
+    
+private:
+    bool _shell;
+};
+
+class Stdin : public BaseFD
+{
+public:
+    Stdin(Session *session)
+    :_session(session)
+    {
+        _fd = fileno(stdin);
+    }
+    
+protected:
+    void OnEvent(void) override
+    {
+        char c[100];
+        int amount = (int)read(_fd, c, 100);
+        _session->Send(c, amount);
+    }
+    
+private:
+    Session *_session;
+};
+
 int main(int argc, const char * argv[])
 {
     if (argc < 2) {
@@ -64,10 +158,9 @@ int main(int argc, const char * argv[])
     TestAuthentication testAuth;
     auth->SetAuthenticator(&testAuth);
     minissh::Core::Connection::Client connection(client, auth->AuthEnabler());
-    std::shared_ptr<minissh::Core::Session> session = std::make_shared<minissh::Core::Session>(connection);
+    std::shared_ptr<Session> session = std::make_shared<Session>(connection);
     connection.OpenChannel(session);
     Stdin stdinRead(session.get());
-    test->session = session;
     test->transport->Start();
     BaseFD::Run();
     return 0;

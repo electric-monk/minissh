@@ -12,6 +12,7 @@
 #include "TestUtils.h"
 #include "DiffieHellman.h"
 #include "SshAuth.h"
+#include "Connection.h"
 
 #include "RSA.h"
 #include "Hash.h"

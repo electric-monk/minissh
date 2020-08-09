@@ -9,7 +9,6 @@
 #pragma once
 
 #include "Client.h"
-#include "Session.h"
 #include "RSA.h"
 
 class BaseFD
@@ -26,16 +25,6 @@ protected:
     BaseFD *_last, *_next;
     
     int _fd;
-};
-
-class Stdin : public BaseFD
-{
-public:
-    Stdin(minissh::Core::Session *session);
-protected:
-    void OnEvent(void) override;
-private:
-    minissh::Core::Session *_session;
 };
 
 class BaseSocket : public BaseFD
@@ -55,7 +44,6 @@ public:
     std::shared_ptr<minissh::Files::Format::IKeyFile> GetHostKey(void) override;
     
     minissh::Transport::Transport *transport;
-    std::shared_ptr<minissh::Core::Session> session;
     std::shared_ptr<minissh::RSA::KeySet> hostKey;
     
 protected:

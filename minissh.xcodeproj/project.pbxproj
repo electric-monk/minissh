@@ -62,8 +62,6 @@
 		3BFDC1451C73216F00024654 /* SshAuth.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BFDC1431C73216F00024654 /* SshAuth.h */; };
 		3BFDC1481C75CB7A00024654 /* Connection.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BFDC1461C75CB7A00024654 /* Connection.cpp */; };
 		3BFDC1491C75CB7A00024654 /* Connection.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BFDC1471C75CB7A00024654 /* Connection.h */; };
-		3BFDC1501C78805900024654 /* Session.cpp in Sources */ = {isa = PBXBuildFile; fileRef = 3BFDC14E1C78805900024654 /* Session.cpp */; };
-		3BFDC1511C78805900024654 /* Session.h in Headers */ = {isa = PBXBuildFile; fileRef = 3BFDC14F1C78805900024654 /* Session.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -168,8 +166,6 @@
 		3BFDC1431C73216F00024654 /* SshAuth.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = SshAuth.h; path = minissh/Library/SshAuth.h; sourceTree = "<group>"; };
 		3BFDC1461C75CB7A00024654 /* Connection.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Connection.cpp; path = minissh/Library/Connection.cpp; sourceTree = "<group>"; };
 		3BFDC1471C75CB7A00024654 /* Connection.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Connection.h; path = minissh/Library/Connection.h; sourceTree = "<group>"; };
-		3BFDC14E1C78805900024654 /* Session.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = Session.cpp; path = minissh/Library/Session.cpp; sourceTree = "<group>"; };
-		3BFDC14F1C78805900024654 /* Session.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = Session.h; path = minissh/Library/Session.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -274,8 +270,6 @@
 				3BFDC1431C73216F00024654 /* SshAuth.h */,
 				3BFDC1461C75CB7A00024654 /* Connection.cpp */,
 				3BFDC1471C75CB7A00024654 /* Connection.h */,
-				3BFDC14E1C78805900024654 /* Session.cpp */,
-				3BFDC14F1C78805900024654 /* Session.h */,
 				3BECB18724989755004798E5 /* Base64.cpp */,
 				3BECB18824989755004798E5 /* Base64.h */,
 				3BECB18B2498C8BA004798E5 /* DerFile.cpp */,
@@ -331,7 +325,6 @@
 				3BFDC1491C75CB7A00024654 /* Connection.h in Headers */,
 				3B40C5371C69EEC8004DA8E5 /* SSH_AES.h in Headers */,
 				3B40C5121C4F69E3004DA8E5 /* Maths.h in Headers */,
-				3BFDC1511C78805900024654 /* Session.h in Headers */,
 				3BC49EDA24D6948200312430 /* Server.h in Headers */,
 				3B40C5201C5F52B7004DA8E5 /* sha1.h in Headers */,
 				3BC49EFC24DBE36400312430 /* Primes.h in Headers */,
@@ -475,7 +468,6 @@
 				3BECB18D2498C8BA004798E5 /* DerFile.cpp in Sources */,
 				3BFDC1481C75CB7A00024654 /* Connection.cpp in Sources */,
 				3B40C5321C6855CC004DA8E5 /* AES.cpp in Sources */,
-				3BFDC1501C78805900024654 /* Session.cpp in Sources */,
 				3B40C5231C60A9EF004DA8E5 /* RSA.cpp in Sources */,
 				3B1279551C6B160300BDBB06 /* hmac.cpp in Sources */,
 				3B40C5111C4F69E3004DA8E5 /* Maths.cpp in Sources */,

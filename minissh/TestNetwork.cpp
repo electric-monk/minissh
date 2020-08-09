@@ -87,19 +87,6 @@ void BaseFD::Run(void)
     }
 }
 
-Stdin::Stdin(minissh::Core::Session* session)
-:_session(session)
-{
-    _fd = fileno(stdin);
-}
-
-void Stdin::OnEvent(void)
-{
-    char c[100];
-    int amount = (int)read(_fd, c, 100);
-    _session->Send(c, amount);
-}
-
 Socket::Socket(const char *host, unsigned short port)
 {
     _fd = socket(PF_INET, SOCK_STREAM, 0);
@@ -108,7 +95,6 @@ Socket::Socket(const char *host, unsigned short port)
         fprintf(stderr, "Failed to connect\n");
         exit(-2);
     }
-    session = NULL;
 }
 
 Socket::Socket(int fd)
