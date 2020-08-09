@@ -149,6 +149,7 @@ private:
     
     std::map<std::string, std::shared_ptr<IChannelProvider>> _mappings;
     
+    void SendChannelRequest(UInt32 index, std::shared_ptr<AChannel> channel);
     void SendOpenFailure(UInt32 recipientChannel, SSHConnection reason);
 };
     

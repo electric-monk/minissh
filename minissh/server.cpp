@@ -59,7 +59,7 @@ protected:
     {
         printf("Request %s received", request.c_str());
         if (data)
-            printf(" [EXTRA DATA: %s]", data->AsString().c_str());
+            printf(" [extra data: %s]", data->AsString().c_str());
         printf("\n");
         return true;
     }
@@ -128,7 +128,7 @@ private:
 int main(int argc, const char * argv[])
 {
     TestRandom randomiser;
-    Server test(randomiser, 12348);
+    Server test(randomiser, 12345);
     BaseFD::Run();
     
     return 0;

@@ -365,42 +365,27 @@ void Connection::BeginConnection(void)
     _transport.RegisterForPackets(this, packets, sizeof(packets) / sizeof(packets[0]));
     UInt32 i = 0;
     for (std::shared_ptr<Connection::AChannel>& channel : _channels) {
-        if (channel) {
-            AChannel::OpenChannelParameters parameters;
-            parameters.packetSize = 1024;
-            parameters.windowSize = 65536;
-            AChannel::OpenChannelInfo info = channel->OpenInfo(parameters);
-            Types::Blob packet;
-            Types::Writer writer(packet);
-            writer.Write(Byte(CHANNEL_OPEN));
-            writer.WriteString(info.name);
-            writer.Write(i);
-            writer.Write(parameters.windowSize);
-            writer.Write(parameters.packetSize);
-            if (info.extraData)
-                packet.Append(info.extraData->Value(), info.extraData->Length());
-            _transport.Send(packet);
-        }
+        if (channel)
+            SendChannelRequest(i, channel);
         i++;
     }
 }
 
 void Connection::OpenChannel(std::shared_ptr<AChannel> channel)
 {
-    // Get init info
-    AChannel::OpenChannelParameters parameters;
-    parameters.packetSize = 1024;
-    parameters.windowSize = 65536;
-    AChannel::OpenChannelInfo info = channel->OpenInfo(parameters);
-    if (!info.name.length())
-        return;
-    
     // Get channel number
     UInt32 channelIndex = _channels.Map(channel);
     if (!_started)
         return;
-    
-    // Send request
+    SendChannelRequest(channelIndex, channel);
+}
+
+void Connection::SendChannelRequest(UInt32 channelIndex, std::shared_ptr<AChannel> channel)
+{
+    AChannel::OpenChannelParameters parameters;
+    parameters.packetSize = 1024;
+    parameters.windowSize = 65536;
+    AChannel::OpenChannelInfo info = channel->OpenInfo(parameters);
     Types::Blob packet;
     Types::Writer writer(packet);
     writer.Write(Byte(CHANNEL_OPEN));
