@@ -375,6 +375,8 @@ std::string Transport::StringForPanicReason(PanicReason reason)
             return "Bad signature";
         case PanicReason::NoHostKey:
             return "No host key";
+        case PanicReason::DisconnectingForError:
+            return "Disconnected due to fatal error";
     }
 }
     
@@ -564,6 +566,18 @@ void Transport::Start(void)
     // Send kexinit
     if (mode == Mode::Server)
         kexHandler->Start();
+}
+
+void Transport::Disconnect(SSHDisconnect reason)
+{
+    Types::Blob data;
+    Types::Writer writer(data);
+    writer.Write(DISCONNECT);
+    writer.Write((UInt32)reason);
+    writer.WriteString(StringForSSHDisconnect(reason));
+    writer.WriteString(""); // Language tag
+    Send(data);
+    Panic(PanicReason::DisconnectingForError);
 }
 
 void Transport::SetDelegate(IDelegate *delegate)

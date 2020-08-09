@@ -12,6 +12,7 @@
 #include "Types.h"
 #include "Hash.h"
 #include "KeyFile.h"
+#include "SshNumbers.h"
 
 namespace minissh::Maths {
 class IRandomSource;
@@ -260,6 +261,7 @@ public:
         BadHostKey,
         BadSignature,
         NoHostKey,
+        DisconnectingForError,
     };
     static std::string StringForPanicReason(PanicReason reason);
     
@@ -320,6 +322,7 @@ public:
     
     // Control
     void Start(void);
+    void Disconnect(SSHDisconnect reason);
     
     // Utilities
     inline std::shared_ptr<IEncryptionAlgorithm> GetIncomingEncryption(void)

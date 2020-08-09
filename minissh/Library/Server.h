@@ -24,7 +24,7 @@ public:
     class IServiceProvider : public minissh::Transport::IMessageHandler
     {
     public:
-        virtual void ServiceRequested() = 0;
+        virtual void ServiceRequested(std::string name, std::optional<std::string> username) = 0;
     };
     
     /**
@@ -33,12 +33,15 @@ public:
     class IServiceHandler : public minissh::Transport::IMessageHandler
     {
     public:
-        virtual void RegisterService(const std::string& name, std::shared_ptr<IServiceProvider> provider) = 0;
+        virtual void RegisterService(const std::string& name, IServiceProvider* provider) = 0;
     };
     
     Server(Maths::IRandomSource& source);
 
     std::shared_ptr<IServiceHandler> DefaultServiceHandler(void);
+    
+private:
+    std::shared_ptr<IServiceHandler> _handler;
 };
     
 } // namespace minissh::Core

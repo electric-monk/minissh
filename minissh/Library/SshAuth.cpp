@@ -13,8 +13,149 @@
 
 namespace minissh {
     
+namespace {
+    constexpr const char* SERVICE_NAME = "ssh-userauth";
+    constexpr const char* METHOD_KEY = "publickey";
+    constexpr const char* METHOD_PASSWORD = "password";
+}
+    
 namespace Server {
     const Byte messages[] = {USERAUTH_REQUEST};
+
+    namespace {
+        
+        class AuthServiceList : public Core::Server::IServiceHandler
+        {
+        public:
+            Core::Server &_owner;
+            std::map<std::string, Core::Server::IServiceProvider*> _mapping;
+        public:
+            AuthServiceList(Core::Server& owner)
+            :_owner(owner)
+            {
+            }
+            
+            void RegisterService(const std::string& name, Core::Server::IServiceProvider* provider) override
+            {
+                if (provider)
+                    _mapping[name] = provider;
+                else
+                    _mapping.erase(name);
+            }
+            
+            void HandlePayload(Types::Blob data) override
+            {
+                // Nothing to do, the auth service takes care of all packets
+            }
+            
+            void LaunchService(std::string name, std::string username)
+            {
+                auto it = _mapping.find(name);
+                if (it == _mapping.end()) {
+                    DEBUG_LOG_STATE(("Auth service not registered!\n"));
+                    _owner.Disconnect(DISCONNECT_SERVICE_NOT_AVAILABLE);
+                } else {
+                    it->second->ServiceRequested(name, username);
+                }
+            }
+        };
+        
+    }
+    
+    AuthService::AuthService(Core::Server& owner, std::shared_ptr<Core::Server::IServiceHandler> enabler, IAuthenticator& authenticator)
+    :_owner(owner), _authenticator(authenticator), _running(false), _handler(std::make_shared<AuthServiceList>(owner))
+    {
+        enabler->RegisterService(SERVICE_NAME, this);
+    }
+
+    AuthService::~AuthService()
+    {
+        if (_running)
+            _owner.UnregisterForPackets(messages, sizeof(messages) / sizeof(messages[0]));
+    }
+
+    void AuthService::ServiceRequested(std::string name, std::optional<std::string> username)
+    {
+        if (_running)
+            DEBUG_LOG_STATE(("%s requested twice?\n", SERVICE_NAME));
+        // Initialise
+        _running = true;
+        _owner.RegisterForPackets(this, messages, sizeof(messages) / sizeof(messages[0]));
+        // Send banner, if any
+        std::optional<std::string> banner = _authenticator.Banner();
+        if (banner) {
+            Types::Blob data;
+            Types::Writer writer(data);
+            writer.Write(USERAUTH_BANNER);
+            writer.WriteString(*banner);
+            writer.WriteString(""); // language tag
+            _owner.Send(data);
+        }
+    }
+
+    void AuthService::HandlePayload(Types::Blob data)
+    {
+        Types::Reader reader(data);
+        switch (reader.ReadByte()) {
+            case USERAUTH_REQUEST:
+            {
+                Types::Blob response;
+                Types::Writer writer(response);
+                bool needResponse = true;
+                bool valid = false;
+                std::string userName = reader.ReadString().AsString();
+                std::string serviceName = reader.ReadString().AsString();
+                std::string methodName = reader.ReadString().AsString();
+                if (methodName.compare(METHOD_PASSWORD) == 0) {
+                    bool hasNewPassword = reader.ReadBoolean();
+                    std::string password = reader.ReadString().AsString();
+                    if (hasNewPassword) {
+                        std::string newPassword = reader.ReadString().AsString();
+                        valid = _authenticator.ConfirmPasswordWithNew(serviceName, userName, password, newPassword);
+                    } else {
+                        std::optional<bool> validOrChange = _authenticator.ConfirmPassword(serviceName, userName, password);
+                        if (!validOrChange) {
+                            // Send "requesting new password" packet
+                            writer.Write(USERAUTH_PASSWD_CHANGEREQ);
+                            writer.WriteString(_authenticator.PasswordPrompt());
+                            writer.WriteString(""); // Language tag
+                            needResponse = false;
+                        } else {
+                            valid = *validOrChange;
+                        }
+                    }
+                }
+                if (needResponse) {
+                    if (valid) {
+                        writer.Write(USERAUTH_SUCCESS);
+                    } else {
+                        std::vector<std::string> nameList;
+                        nameList.push_back(METHOD_PASSWORD);
+                        writer.Write(USERAUTH_FAILURE);
+                        writer.Write(nameList);
+                        writer.Write((bool)false);  // Partial success
+                    }
+                }
+                _owner.Send(response);
+                if (valid) {
+                    DEBUG_LOG_STATE(("Launching authed service '%s' for user '%s'\n", serviceName.c_str(), userName.c_str()));
+                    // Launch service
+                    std::dynamic_pointer_cast<AuthServiceList>(_handler)->LaunchService(serviceName, userName);
+                }
+            }
+                break;
+            default:
+                // We weren't subscribed to this?
+                _owner.Panic(Core::Server::PanicReason::InvalidMessage);
+                break;
+        }
+    }
+    
+    std::shared_ptr<Core::Server::IServiceHandler> AuthService::AuthServiceHandler(void)
+    {
+        return _handler;
+    }
+
 }
 
 namespace Client {
@@ -79,7 +220,7 @@ namespace Client {
     AuthService::AuthService(Core::Client& owner, std::shared_ptr<Core::Client::IEnabler> enabler)
     :_running(false), _owner(owner), _authenticator(nullptr)
     {
-        enabler->Request("ssh-userauth", this);
+        enabler->Request(SERVICE_NAME, this);
         _owner.RegisterForPackets(this, messages, sizeof(messages) / sizeof(messages[0]));
     }
     

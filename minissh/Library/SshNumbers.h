@@ -44,5 +44,17 @@ enum SSHMessages : minissh::Byte {
     CHANNEL_FAILURE = 100,
 };
 
+enum SSHDisconnect : minissh::UInt32 {
+    DISCONNECT_SERVICE_NOT_AVAILABLE = 7,
+};
+    
+enum SSHConnection : minissh::UInt32 {
+    ADMINISTRATIVELY_PROHIBITED = 1,
+    CONNECT_FAILED = 2,
+    UNKNOWN_CHANNEL_TYPE = 3,
+    RESOURCE_SHORTAGE = 4,
+};
+    
 std::string StringForSSHNumber(SSHMessages number);
-
+std::string StringForSSHDisconnect(SSHDisconnect disconnect);
+std::string StringForSSHConnection(SSHConnection connection);

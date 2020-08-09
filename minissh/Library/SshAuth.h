@@ -9,12 +9,73 @@
 #pragma once
 
 #include <stdlib.h>
+#include "Server.h"
 #include "Client.h"
 
 namespace minissh {
 
 // Server
 
+namespace Server {
+    /**
+     * Interface for providing authentication for clients.
+     */
+    class IAuthenticator
+    {
+    public:
+        virtual ~IAuthenticator() = default;
+        
+        /**
+         * Optionally send a banner when authentication is requested.
+         */
+        virtual std::optional<std::string> Banner() { return {}; };
+        
+        /**
+         * Validate a plaintext password.
+         *
+         * Return type is optional - if password is correct but you want it to change, return nothing to indicate
+         * you want it changed.
+         */
+        virtual std::optional<bool> ConfirmPassword(std::string requestedService, std::string username, std::string password) = 0;
+        
+        /**
+         * Get a password prompt.
+         */
+        virtual std::string PasswordPrompt(void) { return "Please change your password!"; }
+        
+        /**
+         * Validate a plaintext password, and set a new password.
+         */
+        virtual bool ConfirmPasswordWithNew(std::string requestedService, std::string username, std::string password, std::string newPassword) = 0;
+
+        // TODO: public key
+        // TODO: multiple authentications for a single session
+    };
+    
+    /**
+     * Implementation of the "ssh-auth" service.
+     */
+    class AuthService : public Core::Server::IServiceProvider
+    {
+    public:
+        AuthService(Core::Server& owner, std::shared_ptr<Core::Server::IServiceHandler> enabler, IAuthenticator& authenticator);
+        ~AuthService();
+        
+        void ServiceRequested(std::string name, std::optional<std::string> username) override;
+
+        void HandlePayload(Types::Blob data) override;
+        
+        std::shared_ptr<Core::Server::IServiceHandler> AuthServiceHandler(void);
+
+    private:
+        Core::Server &_owner;
+        IAuthenticator &_authenticator;
+        bool _running;
+        std::shared_ptr<Core::Server::IServiceHandler> _handler;
+    };
+
+}
+    
 // Client
 
 namespace Client {
@@ -38,6 +99,8 @@ namespace Client {
     class IAuthenticator
     {
     public:
+        virtual ~IAuthenticator() = default;
+        
         /**
          * Class to provide a means for the IAuthenticator implementation to respond.
          */

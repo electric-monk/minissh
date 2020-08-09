@@ -42,3 +42,27 @@ std::string StringForSSHNumber(SSHMessages number)
             return "Unknown";
     };
 }
+
+std::string StringForSSHDisconnect(SSHDisconnect disconnect)
+{
+    switch (disconnect) {
+        case DISCONNECT_SERVICE_NOT_AVAILABLE:
+            return "Service not available";
+        default:
+            return "Unknown";
+    }
+}
+
+std::string StringForSSHConnection(SSHConnection connection)
+{
+    switch (connection) {
+        case ADMINISTRATIVELY_PROHIBITED:
+            return "Administratively prohibited";
+        case CONNECT_FAILED:
+            return "Connect failed";
+        case UNKNOWN_CHANNEL_TYPE:
+            return "Unknown channel type";
+        case RESOURCE_SHORTAGE:
+            return "Resource shortage";
+    }
+}

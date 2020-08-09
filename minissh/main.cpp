@@ -63,13 +63,12 @@ int main(int argc, const char * argv[])
     minissh::Client::AuthService *auth = new minissh::Client::AuthService(client, client.DefaultEnabler());
     TestAuthentication testAuth;
     auth->SetAuthenticator(&testAuth);
-    minissh::Core::Connection connection(client, auth->AuthEnabler());
+    minissh::Core::Connection::Client connection(client, auth->AuthEnabler());
     std::shared_ptr<minissh::Core::Session> session = std::make_shared<minissh::Core::Session>(connection);
     connection.OpenChannel(session);
     Stdin stdinRead(session.get());
     test->session = session;
     test->transport->Start();
     BaseFD::Run();
-    
     return 0;
 }

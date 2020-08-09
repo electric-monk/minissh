@@ -11,8 +11,8 @@
 
 namespace minissh::Core {
 
-Session::Session(Connection& owner)
-:Connection::AChannel(owner)
+Session::Session(Connection::Connection& owner)
+:Connection::Connection::AChannel(owner)
 {
     _shell = false;
 }

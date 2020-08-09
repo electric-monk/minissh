@@ -15,10 +15,10 @@ namespace minissh::Core {
 /**
  * An SSH session, representing a single terminal.
  */
-class Session : public Connection::AChannel
+class Session : public Connection::Connection::AChannel
 {
 public:
-    Session(Connection& owner);
+    Session(Connection::Connection& owner);
     
     std::optional<Types::Blob> OpenInfo(std::string &nameOut, UInt32 &packetSize, UInt32 &windowSize) override;
     void Opened(Types::Blob data) override;

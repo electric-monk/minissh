@@ -11,26 +11,46 @@
 #include "TestNetwork.h"
 #include "TestUtils.h"
 #include "DiffieHellman.h"
+#include "SshAuth.h"
 
 #include "RSA.h"
 #include "Hash.h"
 
-class Client
+class Client : public minissh::Server::IAuthenticator
 {
 public:
     Client(minissh::Maths::IRandomSource& randomiser, std::shared_ptr<Socket> connection)
-    :_connection(connection), _server(randomiser)
+    :_network(connection)
+    ,_server(randomiser)
+    ,_auth(_server, _server.DefaultServiceHandler() ,*this)
+    ,_connection(_server, _auth.AuthServiceHandler())
     {
-        _connection->transport = &_server;
-        _server.SetDelegate(_connection.get());
+        _network->transport = &_server;
+        _server.SetDelegate(_network.get());
         ConfigureSSH(_server.configuration);
-        minissh::Types::Blob hostKey((minissh::Byte*)"Test", 4);
         _server.Start();
     }
     
+    std::optional<std::string> Banner() override
+    {
+        return "Hello there! How are you today?";
+    }
+    
+    std::optional<bool> ConfirmPassword(std::string requestedService, std::string username, std::string password) override
+    {
+        return true;
+    }
+    
+    bool ConfirmPasswordWithNew(std::string requestedService, std::string username, std::string password, std::string newPassword) override
+    {
+        return false;
+    }
+
 private:
-    std::shared_ptr<Socket> _connection;
+    std::shared_ptr<Socket> _network;
     minissh::Core::Server _server;
+    minissh::Server::AuthService _auth;
+    minissh::Core::Connection::Server _connection;
 };
 
 class Server : public Listener
@@ -39,7 +59,10 @@ public:
     Server(minissh::Maths::IRandomSource& randomiser, int port)
     :Listener(port), _randomiser(randomiser)
     {
+        fprintf(stdout, "Generating host key...");
+        fflush(stdout);
         _hostKey = std::make_shared<minissh::RSA::KeySet>(_randomiser, 1024);
+        fprintf(stdout, "Done\n");
     }
 
     void OnAccepted(std::shared_ptr<Socket> connection) override
