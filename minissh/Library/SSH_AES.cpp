@@ -14,7 +14,7 @@ namespace minissh::Algorithm {
 
 AES_CBC::AES_CBC(Transport::Transport& owner, Transport::Mode mode, int keySize)
 :_cypher(owner.keyExchanger->ExtendKey((mode == Transport::Client) ? owner.keyExchanger->encryptionKeyC2S : owner.keyExchanger->encryptionKeyS2C, keySize / 8))
-,_operation(_cypher, (mode == Transport::Client) ? owner.keyExchanger->initialisationVectorC2S : owner.keyExchanger->initialisationVectorS2C)
+,_operation(_cypher, owner.keyExchanger->ExtendKey((mode == Transport::Client) ? owner.keyExchanger->initialisationVectorC2S : owner.keyExchanger->initialisationVectorS2C, keySize / 8))
 {
 }
 
