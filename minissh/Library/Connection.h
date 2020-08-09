@@ -41,12 +41,23 @@ public:
         virtual ~AChannel();
         
     protected:
+        // Returned by OpenInfo, this struct allows the channel to specify some useful info during connection.
+        struct OpenChannelInfo {
+            std::optional<Types::Blob> extraData;
+            std::string name;   // This is used by client mode only. Server mode already knows its name as a provider.
+        };
+        // Passed into OpenInfo, this struct allows tweaking of parameters. They will be initialised before the call,
+        // so no modifications are necessary to use default values
+        struct OpenChannelParameters {
+            UInt32 packetSize;
+            UInt32 windowSize;
+        };
 
         // Client-only hooks
         virtual void OpenFailed(UInt32 reason, const std::string& message, const std::string& languageTag) {}
 
         // Client and server hooks
-        virtual std::optional<Types::Blob> OpenInfo(std::string& nameOut, UInt32 &packetSize, UInt32 &windowSize) = 0;
+        virtual OpenChannelInfo OpenInfo(OpenChannelParameters& parameters) = 0;
         virtual void Opened(Types::Blob data) {};
         virtual void ReceivedEOF(void) { /* Indicates the remote will send no further data */ }
         virtual void ReceivedClose(void) {};

@@ -366,19 +366,19 @@ void Connection::BeginConnection(void)
     UInt32 i = 0;
     for (std::shared_ptr<Connection::AChannel>& channel : _channels) {
         if (channel) {
-            std::string name;
-            UInt32 packetSize = 1024;
-            UInt32 windowSize = 65536;
-            std::optional<Types::Blob> data = channel->OpenInfo(name, packetSize, windowSize);
+            AChannel::OpenChannelParameters parameters;
+            parameters.packetSize = 1024;
+            parameters.windowSize = 65536;
+            AChannel::OpenChannelInfo info = channel->OpenInfo(parameters);
             Types::Blob packet;
             Types::Writer writer(packet);
             writer.Write(Byte(CHANNEL_OPEN));
-            writer.WriteString(name);
+            writer.WriteString(info.name);
             writer.Write(i);
-            writer.Write(windowSize);
-            writer.Write(packetSize);
-            if (data)
-                packet.Append(data->Value(), data->Length());
+            writer.Write(parameters.windowSize);
+            writer.Write(parameters.packetSize);
+            if (info.extraData)
+                packet.Append(info.extraData->Value(), info.extraData->Length());
             _transport.Send(packet);
         }
         i++;
@@ -388,11 +388,11 @@ void Connection::BeginConnection(void)
 void Connection::OpenChannel(std::shared_ptr<AChannel> channel)
 {
     // Get init info
-    std::string name;
-    UInt32 packetSize = 1024;
-    UInt32 windowSize = 65536;
-    std::optional<Types::Blob> data = channel->OpenInfo(name, packetSize, windowSize);
-    if (!name.length())
+    AChannel::OpenChannelParameters parameters;
+    parameters.packetSize = 1024;
+    parameters.windowSize = 65536;
+    AChannel::OpenChannelInfo info = channel->OpenInfo(parameters);
+    if (!info.name.length())
         return;
     
     // Get channel number
@@ -404,12 +404,12 @@ void Connection::OpenChannel(std::shared_ptr<AChannel> channel)
     Types::Blob packet;
     Types::Writer writer(packet);
     writer.Write(Byte(CHANNEL_OPEN));
-    writer.WriteString(name);
+    writer.WriteString(info.name);
     writer.Write(channelIndex);
-    writer.Write(windowSize);
-    writer.Write(packetSize);
-    if (data)
-        packet.Append(data->Value(), data->Length());
+    writer.Write(parameters.windowSize);
+    writer.Write(parameters.packetSize);
+    if (info.extraData)
+        packet.Append(info.extraData->Value(), info.extraData->Length());
     _transport.Send(packet);
 }
 
@@ -442,8 +442,9 @@ void Connection::HandlePayload(Types::Blob packet)
         {
             std::string channelType = reader.ReadString().AsString();
             UInt32 senderChannel = reader.ReadUInt32();
-            UInt32 initialWindowSize = reader.ReadUInt32();
-            UInt32 maximumPacketSize = reader.ReadUInt32();
+            AChannel::OpenChannelParameters parameters;
+            parameters.windowSize = reader.ReadUInt32();
+            parameters.packetSize = reader.ReadUInt32();
             DEBUG_LOG_STATE(("Remote requested new channel [their %i] of type %s\n", senderChannel, channelType.c_str()));
             auto it = _mappings.find(channelType);
             if (it == _mappings.end()) {
@@ -456,16 +457,18 @@ void Connection::HandlePayload(Types::Blob packet)
                     SendOpenFailure(senderChannel, SSHConnection::CONNECT_FAILED);
                 } else {
                     UInt32 recipientChannel = _channels.Map(channel);
+                    AChannel::OpenChannelInfo info = channel->OpenInfo(parameters);
                     Types::Blob send;
                     Types::Writer writer(send);
                     writer.Write((Byte)CHANNEL_OPEN_CONFIRMATION);
                     writer.Write(senderChannel);
                     writer.Write(recipientChannel);
-                    writer.Write(initialWindowSize);
-                    writer.Write(maximumPacketSize);
-                    // TODO: Channel specific data
+                    writer.Write(parameters.windowSize);
+                    writer.Write(parameters.packetSize);
+                    if (info.extraData)
+                        writer.Write(*info.extraData);
                     _transport.Send(send);
-                    channel->HandleOpen(senderChannel, initialWindowSize, maximumPacketSize, {});
+                    channel->HandleOpen(senderChannel, parameters.windowSize, parameters.packetSize, {});
                 }
             }
         }

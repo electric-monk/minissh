@@ -53,10 +53,9 @@ public:
         _shell = false;
     }
     
-    std::optional<minissh::Types::Blob> OpenInfo(std::string &nameOut, minissh::UInt32 &packetSize, minissh::UInt32 &windowSize) override
+    OpenChannelInfo OpenInfo(OpenChannelParameters& parameters) override
     {
-        nameOut = "session";
-        return {};
+        return {std::nullopt, "session"};
     }
     
     void Opened(minissh::Types::Blob data) override

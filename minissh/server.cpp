@@ -31,7 +31,11 @@ public:
         }
     };
 protected:
-    std::optional<minissh::Types::Blob> OpenInfo(std::string& nameOut, minissh::UInt32 &packetSize, minissh::UInt32 &windowSize) override {return {};}
+    OpenChannelInfo OpenInfo(OpenChannelParameters& parameters) override {
+        // Default parameters are fine, we don't need to return any extra data, and server mode doesn't use name field
+        return {};
+    }
+    
     void Opened(minissh::Types::Blob data) override
     {
         minissh::Types::Blob test;
