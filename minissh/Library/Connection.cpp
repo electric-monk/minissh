@@ -307,8 +307,9 @@ void Connection::AChannel::HandleClose(void)
     ReceivedClose();
 }
 
-void Connection::AChannel::HandleRequest(const std::string& request, bool reply, Types::Blob data)
+void Connection::AChannel::HandleRequest(const std::string& request, bool reply, std::optional<Types::Blob> data)
 {
+    DEBUG_LOG_STATE(("Channel [remote %i] received request '%s'\n", _remoteChannel, request.c_str()));
     bool result = ReceivedRequest(request, data);
     if (reply) {
         Types::Blob packet;
@@ -449,7 +450,7 @@ void Connection::HandlePayload(Types::Blob packet)
                 DEBUG_LOG_STATE(("Unknown channel type\n"));
                 SendOpenFailure(senderChannel, SSHConnection::UNKNOWN_CHANNEL_TYPE);
             } else {
-                std::shared_ptr<AChannel> channel = it->second->AcceptChannel(channelType, reader.ReadBytes(reader.Remaining()));
+                std::shared_ptr<AChannel> channel = it->second->AcceptChannel(*this, channelType, reader.ReadBytes(reader.Remaining()));
                 if (!channel) {
                     DEBUG_LOG_STATE(("Provider failed to return channel\n"));
                     SendOpenFailure(senderChannel, SSHConnection::CONNECT_FAILED);
@@ -463,6 +464,7 @@ void Connection::HandlePayload(Types::Blob packet)
                     writer.Write(initialWindowSize);
                     writer.Write(maximumPacketSize);
                     // TODO: Channel specific data
+                    _transport.Send(send);
                     channel->HandleOpen(senderChannel, initialWindowSize, maximumPacketSize, {});
                 }
             }
@@ -555,7 +557,7 @@ void Connection::HandlePayload(Types::Blob packet)
             UInt32 recipientChannel = reader.ReadUInt32();
             Types::Blob request = reader.ReadString();
             bool reply = reader.ReadBoolean();
-            Types::Blob data = reader.ReadString();
+            std::optional<Types::Blob> data = reader.Remaining() ? std::make_optional(reader.ReadString()) : std::nullopt;
             std::shared_ptr<AChannel> channel = _channels.ChannelFor(recipientChannel);
             if (channel)
                 channel->HandleRequest(request.AsString(), reply, data);

@@ -78,4 +78,41 @@ void Session::Send(const char *keystrokes, UInt32 length)
     AChannel::Send(Types::Blob((Byte*)keystrokes, length));
 }
 
+void SessionServer::Opened(Types::Blob data)
+{
+    Types::Blob test;
+    Types::Writer writer(test);
+    writer.WriteString("Welcome to the server!\r\n");
+    Send(test);
+}
+
+void SessionServer::ReceivedClose(void)
+{
+    
+}
+
+void SessionServer::ReceivedData(Types::Blob data)
+{
+    Types::Blob test;
+    Types::Writer writer(test);
+    writer.WriteString("Got your message! It's: ");
+    writer.WriteString(data.AsString());
+    writer.WriteString("\r\n");
+    Send(test);
+}
+
+void SessionServer::ReceivedExtendedData(UInt32 type, Types::Blob data)
+{
+    
+}
+
+bool SessionServer::ReceivedRequest(const std::string& request, std::optional<Types::Blob> data)
+{
+    printf("Request %s received", request.c_str());
+    if (data)
+         printf(" [EXTRA DATA: %s]", data->AsString().c_str());
+    printf("\n");
+    return true;
+}
+
 } // namespace minissh::Core

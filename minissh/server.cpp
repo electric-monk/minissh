@@ -28,12 +28,13 @@ public:
         _network->transport = &_server;
         _server.SetDelegate(_network.get());
         ConfigureSSH(_server.configuration);
+        _connection.RegisterChannelType("session", std::make_shared<minissh::Core::SessionServer::Provider>());
         _server.Start();
     }
     
     std::optional<std::string> Banner() override
     {
-        return "Hello there! How are you today?";
+        return "Hello there! How are you today?\r\n";
     }
     
     std::optional<bool> ConfirmPassword(std::string requestedService, std::string username, std::string password) override

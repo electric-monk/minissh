@@ -41,17 +41,21 @@ public:
         virtual ~AChannel();
         
     protected:
+
+        // Client-only hooks
+        virtual void OpenFailed(UInt32 reason, const std::string& message, const std::string& languageTag) {}
+
+        // Client and server hooks
         virtual std::optional<Types::Blob> OpenInfo(std::string& nameOut, UInt32 &packetSize, UInt32 &windowSize) = 0;
-        virtual void Opened(Types::Blob data) = 0;
-        virtual void OpenFailed(UInt32 reason, const std::string& message, const std::string& languageTag) = 0;
-        
+        virtual void Opened(Types::Blob data) {};
         virtual void ReceivedEOF(void) { /* Indicates the remote will send no further data */ }
-        virtual void ReceivedClose(void) = 0;
+        virtual void ReceivedClose(void) {};
         virtual void ReceivedData(Types::Blob data) = 0;
         virtual void ReceivedExtendedData(UInt32 type, Types::Blob data) = 0;
-        virtual bool ReceivedRequest(const std::string& request, Types::Blob data) { return false; }
+        virtual bool ReceivedRequest(const std::string& request, std::optional<Types::Blob> data) { return false; }
         virtual void ReceivedRequestResponse(bool success) {}
-        
+
+        // API
         void Send(Types::Blob data);
         void SendExtended(UInt32 type, Types::Blob data);
         void SendEOF(void);
@@ -66,7 +70,7 @@ public:
         void HandleExtendedData(UInt32 type, Types::Blob data);
         void HandleWindowAdjust(UInt32 adjust);
         void HandleClose(void);
-        void HandleRequest(const std::string& request, bool reply, Types::Blob data);
+        void HandleRequest(const std::string& request, bool reply, std::optional<Types::Blob> data);
         
         UInt32 _remoteChannel;
         UInt32 _maxPacketSize;
@@ -92,7 +96,7 @@ public:
     public:
         virtual ~IChannelProvider() = default;
         
-        virtual std::shared_ptr<AChannel> AcceptChannel(std::string channelType, Types::Blob extraData) = 0;
+        virtual std::shared_ptr<AChannel> AcceptChannel(Connection& owner, std::string channelType, Types::Blob extraData) = 0;
     };
     
     ~Connection();
