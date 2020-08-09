@@ -35,30 +35,4 @@ private:
     bool _shell;
 };
 
-/**
- * An SSH session provider, for testing the server.
- */
-class SessionServer : public Connection::Connection::AChannel
-{
-public:
-    SessionServer(Connection::Connection& owner):AChannel(owner){}
-
-    class Provider : public Connection::Connection::IChannelProvider
-    {
-    public:
-        std::shared_ptr<AChannel> AcceptChannel(Connection::Connection& owner, std::string channelType, Types::Blob extraData)
-        {
-            return std::make_shared<SessionServer>(owner);
-        }
-    };
-protected:
-    std::optional<Types::Blob> OpenInfo(std::string& nameOut, UInt32 &packetSize, UInt32 &windowSize) override {return {};}
-    void Opened(Types::Blob data) override;
-    
-    void ReceivedClose(void) override;
-    void ReceivedData(Types::Blob data) override;
-    void ReceivedExtendedData(UInt32 type, Types::Blob data) override;
-    bool ReceivedRequest(const std::string& request, std::optional<Types::Blob> data) override;
-};
-    
 } // namespace minissh::Core
