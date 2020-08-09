@@ -1,6 +1,10 @@
 # minissh
 
-A small SSH client, with no dependencies.
+A small SSH client and server, with no dependencies.
+
+The client will allow you to connect and use an SSH server somewhat haphazardly (e.g. it always says it's a vt100, and Control-C will kill the client, not send Ctrl-C to the server).
+
+The server will send a nice banner, let you log in with any username/password, and then send anything you type back with a message.
 
 ## Intention
 
@@ -17,3 +21,4 @@ Though it's plain C++, it was developed on MacOS X, so an Xcode project is provi
 - It's been updated to use STL smart pointers and strings, however this has increased the binary size by ~200K. Custom implementations may help for embedded purposes. It's also C++17, which may be a bit new for some purposes. On the plus side, the code is more clear to follow.
 - Blob class needs to be upgraded to be more efficient, by internally sharing pointers/etc.
 - Faster prime generation. Currently it uses a fairly slow, accurate method, so for server mode it'll spend a while generating the host key and even the client will spend a few seconds computing a prime.
+- Public key login support. Should be very simple, all the code is there, just needs plumbed in.
