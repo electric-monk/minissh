@@ -42,6 +42,11 @@ public:
     {
         printf("Server says we need to change password (%s)\n", prompt.c_str());
     }
+    
+    void AcceptablePublicKey(Replier *replier, const std::string& keyAlgorithm, minissh::Types::Blob publicKey) override
+    {
+        // Todo
+    }
 };
 
 class Session : public minissh::Core::Connection::Connection::AChannel

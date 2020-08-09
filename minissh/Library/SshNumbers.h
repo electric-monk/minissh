@@ -29,8 +29,10 @@ enum SSHMessages : minissh::Byte {
     USERAUTH_SUCCESS = 52,  // from server
     USERAUTH_BANNER = 53,   // from server
     
-    USERAUTH_PASSWD_CHANGEREQ = 60, // from server
-    USERAUTH_PK_OK = 60,    // from server
+    USERAUTH_MULTIMEANING_RESPONSE = 60,
+    // specifically:
+        USERAUTH_PASSWD_CHANGEREQ = 60, // from server
+        USERAUTH_PK_OK = 60,    // from server
 
     CHANNEL_OPEN = 90,
     CHANNEL_OPEN_CONFIRMATION = 91,

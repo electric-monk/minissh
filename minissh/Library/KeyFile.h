@@ -10,6 +10,10 @@
 
 #include "Types.h"
 
+namespace minissh::Transport {
+    class IHostKeyAlgorithm;
+}
+
 namespace minissh::Files::Format {
     
 /**
@@ -39,11 +43,14 @@ class IKeyFile
 public:
     virtual ~IKeyFile() = default;
     
+    virtual std::shared_ptr<Transport::IHostKeyAlgorithm> KeyAlgorithm(void) = 0;
+    
     virtual Types::Blob SavePublic(FileType type) = 0;
     virtual Types::Blob SavePrivate(FileType type)
     {
         throw new Exception("Attempting to save private key of a public key");
     }
+    
     virtual std::string GetKeyName(FileType type, bool isPrivate)
     {
         throw new Exception("Unsupported file type");

@@ -11,6 +11,7 @@
 #include "Hash.h"
 #include "DerFile.h"
 #include "Primes.h"
+#include "SSH_RSA.h"
 
 namespace minissh::RSA {
     
@@ -293,6 +294,11 @@ std::string KeyPublic::GetKeyName(Files::Format::FileType type, bool isPrivate)
             return TEXT_DER_RSA_PUBLIC;
     }
     return IKeyFile::GetKeyName(type, isPrivate);
+}
+
+std::shared_ptr<Transport::IHostKeyAlgorithm> KeyPublic::KeyAlgorithm(void)
+{
+    return std::make_shared<Algoriths::SSH_RSA>();
 }
 
 KeySet::KeySet(Types::Blob load, Files::Format::FileType type)

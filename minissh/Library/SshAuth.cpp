@@ -8,6 +8,7 @@
 
 #include "SshAuth.h"
 #include "SshNumbers.h"
+#include "KeyFile.h"
 #include <stdio.h>
 #include <memory.h>
 
@@ -138,7 +139,7 @@ namespace Server {
                         writer.Write(USERAUTH_REQUEST);
                         writer.WriteString(userName);
                         writer.WriteString(serviceName);
-                        writer.WriteString("publickey");
+                        writer.WriteString(METHOD_KEY);
                         writer.Write((bool)true);
                         writer.WriteString(algorithm);
                         writer.WriteString(publicKey);
@@ -217,8 +218,8 @@ namespace Client {
         };
     }
 
-    IAuthenticator::Replier::Replier(Internal::AuthTask& task)
-    :_task(task)
+    IAuthenticator::Replier::Replier(const char **_replyMethod, Internal::AuthTask& task)
+    :_method(_replyMethod), _task(task)
     {
     }
     
@@ -234,19 +235,55 @@ namespace Client {
     
     void IAuthenticator::Replier::SendPassword(const std::string& username, const std::string& password, const std::optional<std::string>& newPassword)
     {
+        *_method = METHOD_PASSWORD;
         Types::Blob message;
         Types::Writer writer(message);
         writer.Write(Byte(USERAUTH_REQUEST));
         writer.WriteString(username);
         writer.WriteString(Name());
-        writer.WriteString("password");
+        writer.WriteString(METHOD_PASSWORD);
         writer.Write(bool(newPassword));
         writer.WriteString(password);
         if (newPassword)
             writer.WriteString(*newPassword);
         _task._client->Send(message);
     }
+
+    void IAuthenticator::Replier::DoPublicKey(const std::string& username, std::shared_ptr<Files::Format::IKeyFile> keySet, bool includeSignature)
+    {
+        *_method = METHOD_KEY;
+        std::string keyAlgorithm = keySet->GetKeyName(Files::Format::FileType::SSH, false);
+        Types::Blob message;
+        Types::Writer writer(message);
+        writer.Write(Byte(USERAUTH_REQUEST));
+        writer.WriteString(username);
+        writer.WriteString(Name());
+        writer.WriteString(METHOD_KEY);
+        writer.Write(bool(includeSignature));
+        writer.WriteString(keyAlgorithm);
+        writer.WriteString(Files::Format::SaveSSHKeys(keySet, false));
+        if (includeSignature) {
+            // Compute message
+            Types::Blob sigMessage;
+            Types::Writer sigWriter(sigMessage);
+            sigWriter.WriteString(*_task._client->sessionID);
+            sigWriter.Write(message);
+            // Generate signature
+            writer.WriteString(keySet->KeyAlgorithm()->Compute(*keySet, sigMessage));
+        }
+        _task._client->Send(message);
+    }
+
+    void IAuthenticator::Replier::SendPublicKey(const std::string& username, std::shared_ptr<Files::Format::IKeyFile> keySet)
+    {
+        DoPublicKey(username, keySet, false);
+    }
     
+    void IAuthenticator::Replier::UsePrivateKey(const std::string& username, std::shared_ptr<Files::Format::IKeyFile> keySet)
+    {
+        DoPublicKey(username, keySet, true);
+    }
+
     AuthService::AuthService(Core::Client& owner, std::shared_ptr<Core::Client::IEnabler> enabler)
     :_running(false), _owner(owner), _authenticator(nullptr)
     {
@@ -289,7 +326,7 @@ namespace Client {
         // Start up!
         Internal::AuthTask &task = _activeTasks.front();
         DEBUG_LOG_STATE(("Requesting auth service: %s\n", task._name.c_str()));
-        IAuthenticator::Replier replier(task);
+        IAuthenticator::Replier replier(&_lastRequest, task);
         task.authenticator->Query(&replier, std::nullopt, false);
     }
 
@@ -299,6 +336,7 @@ namespace Client {
         switch (reader.ReadByte()) {
             case USERAUTH_SUCCESS:
             {
+                _lastRequest = nullptr;
                 Internal::AuthTask &task = _activeTasks.front();
                 task._service->Start();
                 DEBUG_LOG_STATE(("Auth service accepted [%s]\n", task._name.c_str()));
@@ -306,21 +344,32 @@ namespace Client {
                 Next();
             }
                 break;
-            case USERAUTH_PASSWD_CHANGEREQ:
+            case USERAUTH_MULTIMEANING_RESPONSE: // USERAUTH_PASSWD_CHANGEREQ or USERAUTH_PK_OK
             {
-                Types::Blob message = reader.ReadString();
-                Types::Blob languageTag = reader.ReadString();
+                const char *req = _lastRequest;
+                _lastRequest = nullptr;
                 Internal::AuthTask &task = _activeTasks.front();
-                IAuthenticator::Replier replier(task);
-                task.authenticator->NeedChangePassword(&replier, message.AsString(), languageTag.AsString());
+                IAuthenticator::Replier replier(&_lastRequest, task);
+                if (req == METHOD_PASSWORD) {
+                    Types::Blob message = reader.ReadString();
+                    Types::Blob languageTag = reader.ReadString();
+                    task.authenticator->NeedChangePassword(&replier, message.AsString(), languageTag.AsString());
+                } else if (req == METHOD_KEY) {
+                    std::string algorithmName = reader.ReadString().AsString();
+                    Types::Blob publicKey = reader.ReadString();
+                    task.authenticator->AcceptablePublicKey(&replier, algorithmName, publicKey);
+                } else {
+                    // panic?
+                }
             }
                 break;
             case USERAUTH_FAILURE:
             {
+                _lastRequest = nullptr;
                 std::vector<std::string> acceptedModes = reader.ReadNameList();
                 bool partialSuccess = reader.ReadBoolean();
                 Internal::AuthTask &task = _activeTasks.front();
-                IAuthenticator::Replier replier(task);
+                IAuthenticator::Replier replier(&_lastRequest, task);
                 task.authenticator->Query(&replier, acceptedModes, partialSuccess);
             }
                 break;
@@ -329,7 +378,7 @@ namespace Client {
                 Types::Blob message = reader.ReadString();
                 Types::Blob languageTag = reader.ReadString();
                 Internal::AuthTask &task = _activeTasks.front();
-                IAuthenticator::Replier replier(task);
+                IAuthenticator::Replier replier(&_lastRequest, task);
                 task.authenticator->Banner(&replier, message.AsString(), languageTag.AsString());
             }
                 break;

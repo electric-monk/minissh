@@ -121,20 +121,38 @@ namespace Client {
         class Replier
         {
         public:
-            Replier(Internal::AuthTask& task);
+            Replier(const char **_replyMethod, Internal::AuthTask& task);
             
             std::string Name(void);
             Core::Client::IService& Service(void);
+            
+            /** Send the specified password to attempt authentication via the password mechanism. */
             void SendPassword(const std::string& username, const std::string& password, const std::optional<std::string>& newPassword = std::nullopt);
-            // TODO: public key
+            
+            /** Send the public key on the supplied key set to confirm if this public key is acceptable to the server. */
+            void SendPublicKey(const std::string& username, std::shared_ptr<Files::Format::IKeyFile> keySet);
+            
+            /** Generate a signature and send that to login using the private key on the supplied key set. */
+            void UsePrivateKey(const std::string& username, std::shared_ptr<Files::Format::IKeyFile> keySet);
             
         private:
+            const char **_method;
             Internal::AuthTask &_task;
+            
+            void DoPublicKey(const std::string& username, std::shared_ptr<Files::Format::IKeyFile> keySet, bool includeSignature);
         };
         
+        /** Callback when the server has sent a banner for the currently authenticating user. */
         virtual void Banner(Replier *replier, const std::string& message, const std::string& languageTag) = 0;
+        
+        /** Specifies acceptable authentication modes. */
         virtual void Query(Replier *replier, const std::optional<std::vector<std::string>>& acceptedModes, bool partiallyAccepted) = 0;
+        
+        /** Triggers if a password is attempted and the server requests a password change. */
         virtual void NeedChangePassword(Replier *replier, const std::string& prompt, const std::string& languageTag) = 0;
+        
+        /** Triggers if a public key is sent and the server confirms that it is an acceptable authentication mechanism. */
+        virtual void AcceptablePublicKey(Replier *replier, const std::string& keyAlgorithm, Types::Blob publicKey) = 0;
     };
     
     /**
@@ -161,6 +179,7 @@ namespace Client {
         Core::Client &_owner;
         IAuthenticator *_authenticator;
         std::vector<Internal::AuthTask> _activeTasks;
+        const char *_lastRequest = nullptr;
         
         void Next(void);
     };

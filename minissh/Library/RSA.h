@@ -40,6 +40,8 @@ public:
     
     Key PublicKey(void) const { return Key(_n, _e); }
 
+    std::shared_ptr<Transport::IHostKeyAlgorithm> KeyAlgorithm(void) override;
+    
     Types::Blob SavePublic(Files::Format::FileType type) override;
     std::string GetKeyName(Files::Format::FileType type, bool isPrivate) override;
 
